@@ -11,6 +11,7 @@ des travaux + ampleur + date), sans aucune donnée personnelle nominative.
 from __future__ import annotations
 
 import logging
+import re
 from datetime import date, timedelta
 
 import requests
@@ -76,9 +77,18 @@ class UrbanismeNantes(Source):
             external_id=str(r.get("numero_de_dossier") or ""),
             commune=str(r.get("commune") or "").strip(),
             adresse=str(r.get("adresse_du_terrain") or "").strip(),
-            description=str(r.get("details_du_projet") or "").strip(),
+            description=_nettoyer_html(r.get("details_du_projet")),
             date_signal=r.get("date_de_depot"),
             type_dossier=r.get("type_dossier"),
             surface_plancher=surface,
             raw=r,
         )
+
+
+def _nettoyer_html(valeur) -> str:
+    """Les descriptions d'urbanisme contiennent des <br/> et balises HTML. On nettoie."""
+    texte = str(valeur or "")
+    texte = re.sub(r"<br\s*/?>", ", ", texte, flags=re.IGNORECASE)
+    texte = re.sub(r"<[^>]+>", " ", texte)
+    texte = re.sub(r"\s+", " ", texte)
+    return texte.strip()

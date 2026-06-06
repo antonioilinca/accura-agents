@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import logging
 
-import anthropic
-
 from .config import Config
 from .deliver import livrer
+from .llm import LLMClient
 from .models import RawLead
 from .qualify import CostTracker, qualifier, trier
 from .sources import REGISTRE
@@ -37,11 +36,13 @@ def run(cfg: Config) -> dict:
     cost = CostTracker(cfg.prix_usd_par_million)
     if scannes == 0:
         log.warning("aucune opportunité à qualifier")
-        json_path, recap, nouveaux = livrer(cfg, [], cost.resume(), 0, 0)
+        json_path, recap, _ = livrer(cfg, [], cost.resume(), 0, 0)
         return {"json": str(json_path), "recap": recap, "livres": 0, "scannes": 0,
                 "cost": cost.resume()}
 
-    client = anthropic.Anthropic()
+    client = LLMClient(cfg)
+    log.info("LLM : provider=%s | tri=%s | qualif=%s",
+             cfg.llm_provider, cfg.modele_tri, cfg.modele_qualif)
 
     # 2. QUALIFICATION -------------------------------------------------------------------
     tries = trier(client, cfg, bruts, cost)

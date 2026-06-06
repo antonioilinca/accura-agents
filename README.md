@@ -17,7 +17,8 @@ message de prise de contact.
 
 - **Python 3.10+** et **[uv](https://docs.astral.sh/uv/)** (gestionnaire de paquets rapide).
   Installer uv : `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- Une **clé API Anthropic** : https://console.anthropic.com/ → Settings → API Keys.
+- Une **clé d'IA gratuite**. Par défaut : **Groq** (Llama 3.3 70B, gratuit) →
+  https://console.groq.com/keys. (Alternatives : Mistral, Ollama local, ou Claude payant — voir plus bas.)
 
 ## 2. Installation
 
@@ -30,9 +31,9 @@ uv sync          # crée l'environnement et installe les dépendances
 ## 3. Configuration (2 fichiers à copier)
 
 ```bash
-# a) La clé API
+# a) La clé d'IA
 cp .env.example .env
-# puis ouvre .env et colle ta clé Anthropic
+# puis ouvre .env et colle ta clé Groq (gratuite) sur la ligne GROQ_API_KEY
 
 # b) La config métier / zone
 cp config/config.example.yaml config/config.yaml
@@ -90,11 +91,20 @@ terrain + nature des travaux + ampleur + date), **sans nom ni coordonnées**. Au
 personnelle n'est stockée dans le dépôt (`outputs/` et `inbox/leads_manuels.md` sont exclus
 du dépôt par `.gitignore`).
 
-## Coût
-Les données d'urbanisme sont gratuites. Seule l'IA de qualification consomme : un tri
-grossier avec Haiku puis un scoring fin avec Sonnet, uniquement sur les opportunités
-retenues. Estimation : **~3 à 5 USD / mois** pour un métier et la zone Nantes Métropole.
-Le coût réel de chaque run est affiché dans le récap.
+## Quel modèle / fournisseur d'IA ?
+Le fournisseur se règle dans `config.yaml` (bloc `llm:`), **sans toucher au code**. Tant
+qu'il n'y a pas de client, on reste sur du **gratuit** ; on bascule sur Claude quand un
+client paie.
+
+| Fournisseur | Coût | Qualité | `provider` / `base_url` |
+|---|---|---|---|
+| **Groq** (défaut, Llama 3.3 70B) | gratuit (~14k req/jour) | très bonne | `openai_compat` / `api.groq.com/openai/v1` |
+| **Mistral** (européen, RGPD) | gratuit (free tier) | bonne | `openai_compat` / `api.mistral.ai/v1` |
+| **Ollama** (local) | gratuit, illimité, offline | moyenne (petits modèles) | `openai_compat` / `localhost:11434/v1` |
+| **Claude** (Haiku + Sonnet) | payant (~3-5 USD/mois) | maximale | `anthropic` |
+
+Les données d'urbanisme, elles, sont toujours gratuites. Le coût réel de chaque run est
+affiché dans le récap (0 sur un fournisseur gratuit).
 
 ---
 
@@ -122,7 +132,9 @@ accura-agents/
 Les prochains agents (erreurs, administration, prospection) s'ajouteront sous `agents/`.
 
 ## Choix technique
-La qualification utilise l'**API Claude directe** (paquet `anthropic`), pas le framework
-Agent SDK complet : pour une tâche de tri + scoring c'est la recommandation officielle
-d'Anthropic, c'est moins cher, et ça se déploie sur le VPS sans dépendance lourde. L'archi
-reste modulaire pour basculer vers des sous-agents quand on ajoutera la génération de devis.
+La qualification passe par une **couche LLM unique** (`llm.py`) qui parle soit à un
+fournisseur compatible OpenAI (Groq, Mistral, Ollama — via `requests`, sans dépendance
+lourde), soit à l'API Claude (tool use). Pour une tâche de tri + scoring, un appel par
+opportunité suffit : pas besoin du framework Agent SDK complet (plus cher, dépendance Node
+sur le VPS). L'archi reste modulaire pour basculer vers des sous-agents quand on ajoutera
+la génération de devis.

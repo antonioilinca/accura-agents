@@ -35,22 +35,32 @@ def _setup_logs() -> None:
     )
 
 
+def _verifier_cle(cfg, log) -> None:
+    """Vérifie que la clé nécessaire au fournisseur choisi est présente."""
+    if cfg.llm_provider == "anthropic":
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            log.error("ANTHROPIC_API_KEY manquante (provider=anthropic). Renseigne-la dans .env.")
+            sys.exit(2)
+        return
+    # openai_compat : clé requise sauf serveur local (Ollama)
+    base = (cfg.llm_base_url or "").lower()
+    local = any(x in base for x in ("localhost", "127.0.0.1", ":11434"))
+    if not local and not os.environ.get(cfg.llm_api_key_env):
+        log.error(
+            "%s manquante (provider=openai_compat, base_url=%s). Renseigne-la dans .env.",
+            cfg.llm_api_key_env, cfg.llm_base_url,
+        )
+        sys.exit(2)
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Agent acquisition de leads — Accura Ouest"
-    )
+    parser = argparse.ArgumentParser(description="Agent acquisition de leads — Accura Ouest")
     parser.add_argument("--config", default=None, help="chemin du config.yaml")
     args = parser.parse_args()
 
     load_dotenv(RACINE / ".env")
     _setup_logs()
     log = logging.getLogger("run")
-
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        log.error(
-            "ANTHROPIC_API_KEY manquante. Copie .env.example vers .env et renseigne la clé."
-        )
-        sys.exit(2)
 
     chemin = args.config or (RACINE / "config" / "config.yaml")
     try:
@@ -59,10 +69,11 @@ def main() -> None:
         log.error("%s", e)
         sys.exit(2)
 
+    _verifier_cle(cfg, log)
+
     log.info(
-        "Métier=%s | communes=%d | seuil=%d | tri=%s | qualif=%s",
-        cfg.metier.nom, len(cfg.communes), cfg.seuil_livraison,
-        cfg.modele_tri, cfg.modele_qualif,
+        "Métier=%s | communes=%d | seuil=%d | provider=%s",
+        cfg.metier.nom, len(cfg.communes), cfg.seuil_livraison, cfg.llm_provider,
     )
 
     resultat = run_pipeline(cfg)

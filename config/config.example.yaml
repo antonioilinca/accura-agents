@@ -54,17 +54,44 @@ sources:
     actif: true
     fichier: inbox/leads_manuels.md
 
+# ----------------------------------------------------------------------------
+# Fournisseur d'IA. Tant qu'il n'y a pas de client : on reste sur du GRATUIT.
+# Bascule sur Claude (qualité max) quand un client paie -> il suffit de changer ce bloc.
+#
+#  GROQ (défaut, gratuit, Llama 3.3 70B) :
+#     provider: openai_compat
+#     base_url: https://api.groq.com/openai/v1
+#     api_key_env: GROQ_API_KEY
+#     modele_tri / modele_qualif: llama-3.3-70b-versatile
+#
+#  MISTRAL (gratuit, européen / RGPD-friendly) :
+#     base_url: https://api.mistral.ai/v1   | api_key_env: MISTRAL_API_KEY
+#     modeles: mistral-small-latest (tri) / mistral-large-latest (qualif)
+#
+#  OLLAMA (local, 100% offline, illimité) :
+#     base_url: http://localhost:11434/v1   | api_key_env: ""   (aucune clé)
+#     modeles: qwen2.5-coder:7b  (qualité moindre qu'un 70B)
+#
+#  CLAUDE (payant, qualité max — quand un client paie) :
+#     provider: anthropic   | api_key_env: ANTHROPIC_API_KEY
+#     modeles: claude-haiku-4-5 (tri) / claude-sonnet-4-6 (qualif)
+# ----------------------------------------------------------------------------
+llm:
+  provider: openai_compat
+  base_url: https://api.groq.com/openai/v1
+  api_key_env: GROQ_API_KEY
+  modele_tri: llama-3.3-70b-versatile
+  modele_qualif: llama-3.3-70b-versatile
+
 qualification:
   seuil_livraison: 60     # ne livre que les leads dont le score est >= à cette valeur
-  modele_tri: claude-haiku-4-5      # tri grossier, peu cher
-  modele_qualif: claude-sonnet-4-6  # scoring fin
-  taille_lot_tri: 25      # nombre d'annonces triées par appel Haiku
+  taille_lot_tri: 25      # nombre d'annonces triées par appel
 
 sortie:
   dossier: outputs
 
-# Prix API en USD par million de tokens (vérifiés juin 2026 sur platform.claude.com).
-# Sert uniquement à estimer le coût affiché dans le récap. Mets à jour si les tarifs changent.
+# Prix API en USD par million de tokens — sert UNIQUEMENT à estimer le coût quand on
+# utilise Claude (les fournisseurs gratuits affichent 0). Vérifiés juin 2026.
 pricing_usd_par_million:
   haiku_input: 1.0
   haiku_output: 5.0

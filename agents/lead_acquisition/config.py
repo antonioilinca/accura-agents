@@ -1,7 +1,8 @@
-"""Chargement et validation de la configuration métier/zone/sources (YAML + .env).
+"""Chargement et validation de la configuration métier/zone/sources/LLM (YAML + .env).
 
 Rien n'est codé en dur : le premier artisan client n'est pas encore connu, donc tout
-(métier, communes, rayon, sources, seuil, modèles, prix) vient des fichiers de config.
+(métier, communes, rayon, sources, seuil, fournisseur LLM, modèles, prix) vient des
+fichiers de config.
 """
 
 from __future__ import annotations
@@ -35,9 +36,14 @@ class Config:
     rayon_km: int
     sources: dict[str, SourceConfig]
     seuil_livraison: int
+    taille_lot_tri: int
+    # LLM
+    llm_provider: str          # openai_compat | anthropic
+    llm_base_url: str | None
+    llm_api_key_env: str
     modele_tri: str
     modele_qualif: str
-    taille_lot_tri: int
+    # divers
     dossier_sortie: Path
     prix_usd_par_million: dict[str, float]
     racine: Path
@@ -89,6 +95,7 @@ def charger_config(chemin_config: str | Path) -> Config:
     zone = data.get("zone") or {}
     qualif = data.get("qualification") or {}
     sortie = data.get("sortie") or {}
+    llm = data.get("llm") or {}
 
     return Config(
         metier=metier,
@@ -96,9 +103,12 @@ def charger_config(chemin_config: str | Path) -> Config:
         rayon_km=int(zone.get("rayon_km", 0) or 0),
         sources=sources,
         seuil_livraison=int(qualif.get("seuil_livraison", 60)),
-        modele_tri=str(qualif.get("modele_tri", "claude-haiku-4-5")),
-        modele_qualif=str(qualif.get("modele_qualif", "claude-sonnet-4-6")),
         taille_lot_tri=int(qualif.get("taille_lot_tri", 25)),
+        llm_provider=str(llm.get("provider", "openai_compat")),
+        llm_base_url=llm.get("base_url"),
+        llm_api_key_env=str(llm.get("api_key_env", "GROQ_API_KEY")),
+        modele_tri=str(llm.get("modele_tri", "llama-3.3-70b-versatile")),
+        modele_qualif=str(llm.get("modele_qualif", "llama-3.3-70b-versatile")),
         dossier_sortie=racine / (sortie.get("dossier") or "outputs"),
         prix_usd_par_million=dict(data.get("pricing_usd_par_million") or {}),
         racine=racine,

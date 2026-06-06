@@ -120,6 +120,14 @@ mention de rénovation globale = signal fort.
 RÈGLES
 - Si le métier n'a clairement aucun rapport : metier_pertinent=false et score < 20.
 - zone_ok=false si la commune est hors zone cible ; dans ce cas plafonne le score à 30.
+- ÉCHELLE ARTISAN (capital) : nos clients sont des ARTISANS, pas des entreprises de gros \
+œuvre. Une opération de promoteur n'est PAS un lead exploitable : plafonne le score à 25 et \
+mets adequation_metier=faible si le projet est un programme immobilier — plusieurs immeubles, \
+logements collectifs neufs au-delà d'environ 5 logements, résidence (services / séniors / \
+étudiante), aménagement d'îlot, ou surface de plancher supérieure à environ 600 m² — même si \
+le métier intervient techniquement. Privilégie au contraire : maison individuelle, extension, \
+rénovation / réhabilitation, aménagement de combles, changement de destination, petit \
+collectif (jusqu'à environ 4 logements).
 - Pénalise tout ce qui figure dans la liste « à écarter ».
 - Sois exigeant : un bon lead est un chantier où l'artisan a une vraie chance de décrocher un devis.
 
