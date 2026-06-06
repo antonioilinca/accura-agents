@@ -1,0 +1,28 @@
+# Secrets — ne JAMAIS committer (repo public)
+.env
+
+# Config locale (propre à chaque artisan / zone)
+config/config.yaml
+
+# Données collées manuellement (peuvent contenir des infos personnelles)
+inbox/leads_manuels.md
+
+# Sorties (leads avec adresses) et logs — gardés hors du dépôt
+outputs/*
+!outputs/.gitkeep
+logs/*
+!logs/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.uv/
+*.egg-info/
+uv.lock
+
+# OS / éditeurs
+.DS_Store
+.vscode/
+.idea/

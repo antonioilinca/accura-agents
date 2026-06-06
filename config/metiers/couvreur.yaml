@@ -1,0 +1,31 @@
+metier: couvreur
+libelle: "Couvreur (toiture, charpente, fenêtres de toit)"
+
+travaux_pertinents: >
+  Réfection et rénovation de toiture, charpente, zinguerie, pose de fenêtres de toit
+  (velux), surélévation, création de lucarnes, isolation par la toiture. Concerné par
+  toute modification de toiture, surélévation, aménagement de combles ou réfection de
+  couverture.
+
+mots_cles_positifs:
+  - toiture
+  - couverture
+  - charpente
+  - fenêtre de toit
+  - velux
+  - lucarne
+  - châssis de toit
+  - surélévation
+  - aménagement de combles
+  - zinguerie
+  - isolation toiture
+  - réfection
+
+exclusions:
+  - clôture
+  - portail
+  - ravalement de façade seul
+  - piscine
+  - mur de soutènement
+  - division parcellaire
+  - panneaux photovoltaïques au sol

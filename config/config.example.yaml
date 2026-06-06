@@ -1,0 +1,72 @@
+# ============================================================================
+# Agent acquisition de leads — Accura Ouest
+# Copie ce fichier en config/config.yaml puis adapte-le. config.yaml n'est PAS
+# versionné (chaque artisan / zone a sa propre config).
+# ============================================================================
+
+# Métier ciblé : correspond à un fichier de config/metiers/ (sans .yaml).
+# Disponibles par défaut : plombier, electricien, couvreur.
+metier: plombier
+
+zone:
+  rayon_km: 20            # indicatif (le filtrage réel se fait sur la liste de communes)
+  # Communes scannées. Par défaut : les 24 communes de Nantes Métropole (~20 km).
+  # Les noms doivent correspondre exactement au champ "commune" de l'open data.
+  communes:
+    - Nantes
+    - Saint-Herblain
+    - Rezé
+    - Saint-Sébastien-sur-Loire
+    - Orvault
+    - Vertou
+    - Couëron
+    - Carquefou
+    - Bouguenais
+    - La Chapelle-sur-Erdre
+    - Sainte-Luce-sur-Loire
+    - Basse-Goulaine
+    - Les Sorinières
+    - Thouaré-sur-Loire
+    - Sautron
+    - Saint-Aignan-Grandlieu
+    - Bouaye
+    - La Montagne
+    - Saint-Jean-de-Boiseau
+    - Le Pellerin
+    - Indre
+    - Mauves-sur-Loire
+    - Brains
+    - Saint-Léger-les-Vignes
+
+sources:
+  # SOCLE — open data public, gratuit, légal, frais. Recommandé actif.
+  urbanisme_nantes:
+    actif: true
+    jours_recents: 30     # ne traite que les dossiers déposés dans les N derniers jours
+
+  # ÉLARGISSEMENT hors Nantes Métropole — non encore validé. Laisser à false.
+  sitadel:
+    actif: false
+    departement: "44"
+
+  # Demandes Facebook / bouche-à-oreille collées à la main (humain dans la boucle).
+  inbox_manuelle:
+    actif: true
+    fichier: inbox/leads_manuels.md
+
+qualification:
+  seuil_livraison: 60     # ne livre que les leads dont le score est >= à cette valeur
+  modele_tri: claude-haiku-4-5      # tri grossier, peu cher
+  modele_qualif: claude-sonnet-4-6  # scoring fin
+  taille_lot_tri: 25      # nombre d'annonces triées par appel Haiku
+
+sortie:
+  dossier: outputs
+
+# Prix API en USD par million de tokens (vérifiés juin 2026 sur platform.claude.com).
+# Sert uniquement à estimer le coût affiché dans le récap. Mets à jour si les tarifs changent.
+pricing_usd_par_million:
+  haiku_input: 1.0
+  haiku_output: 5.0
+  sonnet_input: 3.0
+  sonnet_output: 15.0

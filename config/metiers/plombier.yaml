@@ -1,0 +1,32 @@
+metier: plombier
+libelle: "Plombier / chauffagiste (sanitaire, eau, chauffage)"
+
+travaux_pertinents: >
+  Création ou rénovation de salle de bain, cuisine, WC, réseaux d'eau et d'évacuation,
+  chauffage, chauffe-eau, raccordements sanitaires. Intervient sur la quasi-totalité des
+  extensions, surélévations, aménagements de combles et rénovations lourdes (une pièce
+  d'eau ou un point d'eau est presque toujours créé ou déplacé).
+
+mots_cles_positifs:
+  - salle de bain
+  - sanitaire
+  - plomberie
+  - chauffage
+  - chauffe-eau
+  - cuisine
+  - extension
+  - surélévation
+  - aménagement de combles
+  - rénovation
+  - réhabilitation
+  - changement de destination
+  - piscine
+
+exclusions:
+  - clôture
+  - portail
+  - ravalement de façade seul
+  - panneaux photovoltaïques seuls
+  - abri de jardin
+  - mur de soutènement
+  - division parcellaire
