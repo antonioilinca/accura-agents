@@ -45,6 +45,10 @@ DEFAULT_PROFILE = {
         "email": "contact@accuraouest.com",
         "google_review_url": "",
     },
+    "assets": {
+        "logo_path": "",
+        "logo_original_name": "",
+    },
     "business": {
         "main_trade": "plomberie",
         "secondary_trades": ["carrelage"],
@@ -113,9 +117,16 @@ DEFAULT_PROFILE = {
     },
 }
 
+ALLOWED_LOGO_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
+MAX_LOGO_BYTES = 2 * 1024 * 1024
+
 
 def profile_path(root: Path) -> Path:
     return root / "outputs" / "onboarding" / "artisan_profile.json"
+
+
+def onboarding_assets_dir(root: Path) -> Path:
+    return root / "outputs" / "onboarding" / "assets"
 
 
 def devis_config_path(root: Path) -> Path:
@@ -142,6 +153,32 @@ def save_profile(root: Path, profile: dict[str, Any]) -> dict[str, Any]:
     return cleaned
 
 
+def save_logo_asset(root: Path, filename: str, content: bytes) -> dict[str, Any]:
+    if not content:
+        raise ValueError("Logo vide")
+    if len(content) > MAX_LOGO_BYTES:
+        raise ValueError("Logo trop lourd : maximum 2 Mo")
+
+    ext = Path(filename or "").suffix.lower()
+    if ext not in ALLOWED_LOGO_EXTENSIONS:
+        raise ValueError("Format logo non supporté : utilisez PNG, JPG ou WebP")
+    if not _looks_like_logo(content, ext):
+        raise ValueError("Le fichier ne ressemble pas à une image valide")
+
+    folder = onboarding_assets_dir(root)
+    folder.mkdir(parents=True, exist_ok=True)
+    for old_logo in folder.glob("logo.*"):
+        old_logo.unlink()
+
+    target = folder / f"logo{ext}"
+    target.write_bytes(content)
+    return {
+        "logo_path": target.relative_to(root).as_posix(),
+        "logo_original_name": Path(filename).name,
+        "logo_size_bytes": len(content),
+    }
+
+
 def apply_profile_to_devis_config(root: Path, profile: dict[str, Any]) -> dict[str, str]:
     profile = save_profile(root, profile)
     target = devis_config_path(root)
@@ -161,6 +198,7 @@ def apply_profile_to_devis_config(root: Path, profile: dict[str, Any]) -> dict[s
 
 def build_devis_yaml(profile: dict[str, Any]) -> dict[str, Any]:
     company = profile["company"]
+    assets = profile.get("assets", {}) or {}
     settings = profile["quote_settings"]
     business = profile["business"]
     main_trade = business["main_trade"]
@@ -174,6 +212,7 @@ def build_devis_yaml(profile: dict[str, Any]) -> dict[str, Any]:
             "email": company["email"],
             "siret": company["siret"],
             "assurance_decennale": company["insurance"],
+            "logo_path": assets.get("logo_path", ""),
             "mentions": [
                 settings["payment_terms"],
                 "Délais et prix à confirmer après visite technique ou photos exploitables.",
@@ -230,6 +269,8 @@ def normalize_profile(profile: dict[str, Any]) -> dict[str, Any]:
     profile["business"]["service_area"] = as_list(profile["business"].get("service_area"))
     profile["business"]["ideal_jobs"] = as_list(profile["business"].get("ideal_jobs"))
     profile["business"]["excluded_jobs"] = as_list(profile["business"].get("excluded_jobs"))
+    profile["assets"]["logo_path"] = normalize_logo_path(profile["assets"].get("logo_path"))
+    profile["assets"]["logo_original_name"] = str(profile["assets"].get("logo_original_name") or "")
     for item in profile.get("quote_items", []):
         item["keywords"] = as_list(item.get("keywords"))
     return profile
@@ -261,6 +302,27 @@ def as_list(value: Any) -> list[str]:
     return [part.strip() for part in str(value or "").split(",") if part.strip()]
 
 
+def normalize_logo_path(value: Any) -> str:
+    path = str(value or "").strip().replace("\\", "/")
+    if not path:
+        return ""
+    if path.startswith("outputs/onboarding/assets/"):
+        return path
+    if path.startswith("/outputs/onboarding/assets/"):
+        return path.removeprefix("/")
+    return ""
+
+
+def _looks_like_logo(content: bytes, ext: str) -> bool:
+    if ext == ".png":
+        return content.startswith(b"\x89PNG\r\n\x1a\n")
+    if ext in {".jpg", ".jpeg"}:
+        return content.startswith(b"\xff\xd8\xff")
+    if ext == ".webp":
+        return content.startswith(b"RIFF") and content[8:12] == b"WEBP"
+    return False
+
+
 def trade_label(trade: str) -> str:
     labels = {
         "plomberie": "Plomberie / salle de bain",
@@ -284,4 +346,3 @@ def trade_keywords(trade: str, business: dict[str, Any]) -> list[str]:
     }
     words = defaults.get(trade, [trade])
     return sorted(set(words + business.get("ideal_jobs", [])))
-

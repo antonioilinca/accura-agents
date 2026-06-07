@@ -55,6 +55,7 @@ def charger_config(chemin_config: str | Path) -> QuoteConfig:
         email=str(artisan_data.get("email", "")),
         siret=str(artisan_data.get("siret", "")),
         assurance_decennale=str(artisan_data.get("assurance_decennale", "")),
+        logo_path=str(artisan_data.get("logo_path", "")),
         mentions=[str(x) for x in artisan_data.get("mentions", [])],
     )
     pricing = PricingConfig(

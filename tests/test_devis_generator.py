@@ -15,7 +15,7 @@ from agents.devis_generator.models import (
     QuoteLine,
     TradeConfig,
 )
-from agents.devis_generator.render import ecrire_exports
+from agents.devis_generator.render import ecrire_exports, rendre_html
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -126,6 +126,20 @@ class DevisGeneratorTest(unittest.TestCase):
         )
 
         self.assertEqual(doc.demande.urgence, "standard")
+
+    def test_html_render_without_logo_has_clean_fallback(self) -> None:
+        cfg = charger_config(ROOT / "config" / "devis.example.yaml")
+        doc = generer_devis(
+            "Salle de bain à Nantes 6m2, douche, vasque, carrelage, plomberie, gamme standard, photos disponibles.",
+            cfg,
+            id_devis="TEST-SANS-LOGO",
+            utiliser_ia=False,
+        )
+
+        html = rendre_html(doc)
+
+        self.assertNotIn("<img class='artisan-logo'", html)
+        self.assertNotIn("<img", html)
 
 
 if __name__ == "__main__":

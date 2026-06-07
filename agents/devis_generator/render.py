@@ -14,6 +14,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-s
 .page{max-width:960px;margin:28px auto;background:#fff;padding:38px;border:1px solid #d9dee7;box-shadow:0 12px 36px rgba(15,23,42,.08)}
 .top{display:flex;justify-content:space-between;gap:28px;border-bottom:3px solid #172033;padding-bottom:22px}
 .brand{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;font-weight:700}
+.identity{display:flex;align-items:flex-start;gap:16px}.artisan-logo{max-width:132px;max-height:78px;object-fit:contain;border:1px solid #e2e8f0;padding:7px;background:#fff}
 h1{font-size:34px;margin:4px 0 8px;letter-spacing:0}h2{font-size:17px;margin:0 0 10px}h3{font-size:14px;margin:0 0 8px}
 .muted{color:#64748b}.company{text-align:right;line-height:1.45;font-size:13px}
 .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px;margin:22px 0}
@@ -107,14 +108,15 @@ def rendre_html(doc: QuoteDocument) -> str:
         f"{d.type_chantier} - {d.metier_libelle}. Prestations : "
         f"{', '.join(d.prestations) if d.prestations else 'à préciser'}."
     )
+    logo = _logo_html(doc.artisan.logo_path, doc.artisan.nom)
     return f"""<!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Devis {html.escape(doc.id_devis)}</title><style>{CSS}</style></head>
 <body><main class="page">
-<div class="top"><div><div class="brand">Accura Ouest · Devis artisan</div><h1>Devis {html.escape(doc.id_devis)}</h1>
+<div class="top"><div><div class="brand">Devis travaux</div><h1>Devis {html.escape(doc.id_devis)}</h1>
 <p class="muted">Date d'émission : {html.escape(doc.date_creation)} · Validité selon conditions ci-dessous</p></div>
-<div class="company"><strong>{html.escape(doc.artisan.nom)}</strong><br>{html.escape(doc.artisan.adresse)}<br>
-{html.escape(doc.artisan.telephone)} · {html.escape(doc.artisan.email)}<br>SIRET : {html.escape(doc.artisan.siret)}<br>{html.escape(doc.artisan.assurance_decennale)}</div></div>
+<div class="identity">{logo}<div class="company"><strong>{html.escape(doc.artisan.nom)}</strong><br>{html.escape(doc.artisan.adresse)}<br>
+{html.escape(doc.artisan.telephone)} · {html.escape(doc.artisan.email)}<br>SIRET : {html.escape(doc.artisan.siret)}<br>{html.escape(doc.artisan.assurance_decennale)}</div></div></div>
 <section class="grid">
 <div class="box"><div class="label">Résumé chantier</div><p>{html.escape(resume)}</p></div>
 <div class="box"><div class="label">Informations chantier</div><p>
@@ -147,3 +149,21 @@ def _eur(value) -> str:
 def _qty(value) -> str:
     number = float(value)
     return str(int(number)) if number.is_integer() else str(value).replace(".", ",")
+
+
+def _logo_html(logo_path: str, artisan_name: str) -> str:
+    src = _logo_src(logo_path)
+    if not src:
+        return ""
+    return f"<img class='artisan-logo' src='{html.escape(src)}' alt='Logo {html.escape(artisan_name)}'>"
+
+
+def _logo_src(logo_path: str) -> str:
+    path = str(logo_path or "").strip().replace("\\", "/")
+    if not path:
+        return ""
+    if path.startswith("outputs/"):
+        return "../" + path.removeprefix("outputs/")
+    if path.startswith("/outputs/"):
+        return path
+    return path

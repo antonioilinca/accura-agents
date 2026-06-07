@@ -26,6 +26,7 @@ class ArtisanIdentity:
     email: str = ""
     siret: str = ""
     assurance_decennale: str = ""
+    logo_path: str = ""
     mentions: list[str] = field(default_factory=list)
 
 

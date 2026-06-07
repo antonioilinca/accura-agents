@@ -43,6 +43,8 @@ Aller dans `Config`.
 Actions :
 
 - `Sauvegarder profil` écrit `outputs/onboarding/artisan_profile.json`.
+- `Importer logo` copie le logo dans `outputs/onboarding/assets/logo.*` et garde le chemin
+  dans le profil artisan.
 - `Appliquer à l'agent devis` génère `config/devis.yaml`.
 - Si `config/devis.yaml` existe déjà, un backup est créé avant écriture.
 
@@ -83,3 +85,5 @@ Déjà ignorés par Git :
 - `config/devis.generated.yaml`
 - `outputs/*`
 
+Les logos artisans sont donc exclus du dépôt. La même ressource `assets.logo_path` pourra
+être réutilisée pour les futures factures.

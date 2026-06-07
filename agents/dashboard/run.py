@@ -7,6 +7,8 @@
 from __future__ import annotations
 
 import argparse
+from email.parser import BytesParser
+from email.policy import default
 import json
 import mimetypes
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -18,7 +20,7 @@ from dotenv import load_dotenv
 from agents.devis_generator.config import charger_config
 from agents.devis_generator.generator import generer_devis
 from agents.devis_generator.render import ecrire_exports
-from agents.dashboard.onboarding import PLANS, apply_profile_to_devis_config, load_profile, save_profile
+from agents.dashboard.onboarding import PLANS, apply_profile_to_devis_config, load_profile, save_logo_asset, save_profile
 
 RACINE = Path(__file__).resolve().parents[2]
 STATIC = Path(__file__).resolve().parent / "static"
@@ -133,6 +135,26 @@ def _generate_quote(text: str, quote_id: str | None = None) -> dict:
     return payload
 
 
+def _extract_multipart_file(headers, body: bytes, field_name: str) -> tuple[str, bytes]:
+    content_type = headers.get("Content-Type", "")
+    if not content_type.startswith("multipart/form-data"):
+        raise ValueError("Upload invalide")
+
+    message = BytesParser(policy=default).parsebytes(
+        f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n".encode("utf-8") + body
+    )
+    for part in message.iter_parts():
+        if part.get_content_disposition() != "form-data":
+            continue
+        name = part.get_param("name", header="content-disposition")
+        if name != field_name:
+            continue
+        filename = part.get_filename() or "logo"
+        content = part.get_payload(decode=True) or b""
+        return filename, content
+    raise ValueError("Fichier logo manquant")
+
+
 class DashboardHandler(BaseHTTPRequestHandler):
     server_version = "AccuraDashboard/0.1"
 
@@ -184,6 +206,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if self.path == "/api/onboarding/apply":
             self._handle_onboarding(apply_config=True)
             return
+        if self.path == "/api/onboarding/logo":
+            self._handle_logo_upload()
+            return
         self.send_error(404)
 
     def _handle_devis(self) -> None:
@@ -211,6 +236,18 @@ class DashboardHandler(BaseHTTPRequestHandler):
             _json_response(self, result)
         except Exception as exc:
             _json_response(self, {"error": str(exc)}, status=500)
+
+    def _handle_logo_upload(self) -> None:
+        length = int(self.headers.get("Content-Length", "0") or "0")
+        try:
+            filename, content = _extract_multipart_file(self.headers, self.rfile.read(length), "logo")
+            logo = save_logo_asset(RACINE, filename, content)
+            profile = load_profile(RACINE)
+            profile["assets"] = {**(profile.get("assets") or {}), **logo}
+            saved = save_profile(RACINE, profile)
+            _json_response(self, {"profile": saved, "logo": logo})
+        except Exception as exc:
+            _json_response(self, {"error": str(exc)}, status=400)
 
     def log_message(self, format: str, *args) -> None:  # noqa: A002
         print(f"[dashboard] {self.address_string()} - {format % args}")

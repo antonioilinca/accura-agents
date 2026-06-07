@@ -182,6 +182,13 @@
               <label>Email <input name="email" type="email"></label>
               <label>Adresse / zone affichée <input name="address" type="text"></label>
               <label>Assurance décennale <input name="insurance" type="text"></label>
+              <label>Logo entreprise
+                <div class="logo-upload">
+                  <input name="logo_file" id="logoFile" type="file" accept="image/png,image/jpeg,image/webp">
+                  <button class="secondary small" type="button" id="uploadLogoBtn">Importer</button>
+                </div>
+                <span class="field-hint" id="logoPath">Aucun logo importé</span>
+              </label>
               <label>TVA <input name="vat_rate" type="number" step="0.01"></label>
               <label>Marge <input name="margin_rate" type="number" step="0.01"></label>
               <label>Taux horaire HT <input name="hourly_rate_ht" type="number" step="1"></label>

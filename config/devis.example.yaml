@@ -11,6 +11,7 @@ artisan:
   email: "contact@accuraouest.com"
   siret: "SIRET à compléter"
   assurance_decennale: "Assurance décennale à compléter"
+  logo_path: ""                    # exemple après onboarding : outputs/onboarding/assets/logo.png
   mentions:
     - "Acompte conseillé avant démarrage, solde à réception des travaux."
     - "Délais et prix à confirmer après visite technique ou photos exploitables."

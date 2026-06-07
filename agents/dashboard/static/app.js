@@ -134,6 +134,9 @@ function renderOnboarding() {
   form.email.value = profile.company?.email || "";
   form.address.value = profile.company?.address || "";
   form.insurance.value = profile.company?.insurance || "";
+  qs("#logoPath").textContent = profile.assets?.logo_path
+    ? `Logo actif : ${profile.assets.logo_path}`
+    : "Aucun logo importé";
   form.vat_rate.value = profile.quote_settings?.vat_rate ?? 0.1;
   form.margin_rate.value = profile.quote_settings?.margin_rate ?? 0.2;
   form.hourly_rate_ht.value = profile.quote_settings?.hourly_rate_ht ?? 55;
@@ -165,6 +168,10 @@ function collectOnboardingProfile() {
       email: form.email.value,
       address: form.address.value,
       insurance: form.insurance.value,
+    },
+    assets: {
+      logo_path: state.onboarding?.assets?.logo_path || "",
+      logo_original_name: state.onboarding?.assets?.logo_original_name || "",
     },
     business: {
       main_trade: form.main_trade.value,
@@ -231,6 +238,30 @@ async function saveOnboarding(applyConfig = false) {
     : "Profil sauvegardé";
 }
 
+async function uploadLogo() {
+  const input = qs("#logoFile");
+  const file = input.files?.[0];
+  if (!file) {
+    qs("#onboardingMessage").textContent = "Choisis un logo PNG, JPG ou WebP";
+    return;
+  }
+
+  qs("#onboardingMessage").textContent = "Import logo...";
+  const formData = new FormData();
+  formData.append("logo", file);
+  const response = await fetch("/api/onboarding/logo", {
+    method: "POST",
+    body: formData,
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Erreur import logo");
+  state.onboarding = data.profile;
+  renderOnboarding();
+  qs("#onboardingStatus").textContent = "Logo sauvegardé";
+  qs("#onboardingMessage").textContent = `Logo prêt : ${data.logo?.logo_path || ""}`;
+  input.value = "";
+}
+
 function setStatus(text) {
   qs("#statusText").textContent = text;
 }
@@ -274,6 +305,9 @@ qs("#saveOnboardingBtn").addEventListener("click", () => {
 });
 qs("#applyOnboardingBtn").addEventListener("click", () => {
   saveOnboarding(true).catch((error) => qs("#onboardingMessage").textContent = error.message);
+});
+qs("#uploadLogoBtn").addEventListener("click", () => {
+  uploadLogo().catch((error) => qs("#onboardingMessage").textContent = error.message);
 });
 
 bootstrap().catch((error) => setStatus(error.message));

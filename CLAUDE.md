@@ -75,6 +75,11 @@ Pour les devis :
 Objectif architectural demandé par Antonio : quand les clés OpenAI/Anthropic seront ajoutées,
 le système doit fonctionner sans refactor lourd.
 
+Règle permanente Accura : chaque nouvelle brique doit être conçue pour que l'ajout de clés
+`OPENAI_API_KEY` et/ou `ANTHROPIC_API_KEY` suffise à activer la couche IA en production.
+Pas de logique métier critique cachée dans les prompts : prix, totaux, TVA, acompte,
+droits d'accès et chemins de fichiers restent contrôlés par la config et le code local.
+
 ## Priorités suivantes
 
 1. Rendre les devis plus professionnels et moins "IA visible".

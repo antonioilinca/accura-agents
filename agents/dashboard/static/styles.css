@@ -146,6 +146,9 @@ code { background: #eef2f6; padding: 2px 5px; border-radius: 4px; }
 .onboarding-form { display: grid; gap: 14px; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 12px; }
 label { display: grid; gap: 6px; color: #344054; font-size: 13px; font-weight: 700; }
+.logo-upload { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.logo-upload input { padding: 7px 9px; }
+.field-hint { color: var(--muted); font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
 .small-textarea { min-height: 86px; }
 .price-textarea { min-height: 170px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
 .capabilities {
