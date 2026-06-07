@@ -59,6 +59,16 @@ Ne pas construire une fonctionnalité qui ne sert pas directement Fondation ou C
 - Important : pas d'envoi automatique tant que WhatsApp/Meta Business et le consentement
   client ne sont pas cadrés. Les messages restent copiables depuis le dashboard.
 
+### Mini CRM Accura
+
+- Dossier : `agents/crm_tracker`
+- Sert la promesse Fondation.
+- Source de vérité : devis JSON dans `outputs/devis/`.
+- Stockage local hors Git : `outputs/crm/pipeline.json`.
+- Statuts supportés : `devis_envoye`, `relance`, `signe`, `perdu`.
+- Rôle : suivre montant TTC, client/chantier, statut et prochaine action sans dupliquer les
+  prix ni modifier les documents.
+
 ### Dashboard artisan local
 
 - Dossier : `agents/dashboard`
@@ -106,7 +116,7 @@ droits d'accès et chemins de fichiers restent contrôlés par la config et le c
 ## Priorités suivantes
 
 1. Rendre les devis plus professionnels et moins "IA visible".
-2. Ajouter mini CRM devis envoyé -> relancé -> signé -> perdu.
-3. Ajouter message avis Google après chantier terminé.
-4. Calibrer les prix avec 2 à 3 vrais devis d'artisans.
+2. Ajouter message avis Google après chantier terminé.
+3. Calibrer les prix avec 2 à 3 vrais devis d'artisans.
+4. Préparer une démo Fondation complète avec un artisan fictif crédible.
 5. Brancher ensuite WhatsApp/transcription seulement quand Meta Business est validé.

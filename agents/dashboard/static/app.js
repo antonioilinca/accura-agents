@@ -1,4 +1,12 @@
-const state = { examples: [], recentQuotes: [], currentMessage: "", followupMessages: [], onboarding: null, plans: {} };
+const state = {
+  examples: [],
+  recentQuotes: [],
+  crmStatuses: {},
+  currentMessage: "",
+  followupMessages: [],
+  onboarding: null,
+  plans: {},
+};
 const qs = (selector) => document.querySelector(selector);
 const money = (value) => new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -19,6 +27,7 @@ async function bootstrap() {
   renderFollowupQuoteOptions();
   renderRecentFollowups(data.recent_followups || []);
   renderRecentLeads(data.recent_leads || []);
+  renderCRM(data.crm || {});
   renderOnboarding();
   if (state.examples[0]) qs("#requestText").value = state.examples[0].text;
 }
@@ -138,6 +147,43 @@ function renderRecentLeads(leads) {
   `).join("");
 }
 
+function renderCRM(crm) {
+  const rows = qs("#crmRows");
+  if (!rows) return;
+  const items = crm.items || [];
+  state.crmStatuses = crm.statuses || {};
+  renderCRMStats(crm.stats || {});
+  if (!items.length) {
+    rows.innerHTML = "<tr><td colspan='6'>Aucun devis dans le pipeline. Génère un devis pour remplir le CRM.</td></tr>";
+    return;
+  }
+  rows.innerHTML = items.map((item) => `
+    <tr data-quote-id="${escapeHtml(item.id)}">
+      <td><strong>${escapeHtml(item.id)}</strong><br>${escapeHtml(item.date || "")}</td>
+      <td>${escapeHtml(item.client)}<br><small>${escapeHtml(item.chantier)}</small></td>
+      <td><strong>${money(item.total_ttc)}</strong></td>
+      <td>${crmStatusSelect(item.status)}</td>
+      <td><input class="crm-next-action" type="text" value="${escapeAttribute(item.next_action || "")}"></td>
+      <td><button class="secondary small save-crm" type="button">Sauver</button><br><a href="${item.html}" target="_blank">Devis</a></td>
+    </tr>
+  `).join("");
+}
+
+function renderCRMStats(stats) {
+  const box = qs("#crmStats");
+  if (!box) return;
+  const keys = Object.keys(state.crmStatuses);
+  box.innerHTML = keys.map((key) => `
+    <div><span>${escapeHtml(state.crmStatuses[key])}</span><strong>${Number(stats[key] || 0)}</strong></div>
+  `).join("");
+}
+
+function crmStatusSelect(current) {
+  return `<select class="crm-status">${Object.entries(state.crmStatuses).map(([value, label]) => (
+    `<option value="${escapeHtml(value)}" ${value === current ? "selected" : ""}>${escapeHtml(label)}</option>`
+  )).join("")}</select>`;
+}
+
 async function generateQuote() {
   const text = qs("#requestText").value.trim();
   if (!text) {
@@ -160,12 +206,29 @@ async function generateQuote() {
     renderRecentQuotes(state.recentQuotes);
     renderInvoiceQuoteOptions();
     renderFollowupQuoteOptions();
+    renderCRM(fresh.crm || {});
     setStatus("Devis généré");
   } catch (error) {
     setStatus(error.message);
   } finally {
     qs("#generateBtn").disabled = false;
   }
+}
+
+async function saveCRMRow(row) {
+  const quoteId = row.dataset.quoteId;
+  const status = row.querySelector(".crm-status").value;
+  const nextAction = row.querySelector(".crm-next-action").value;
+  qs("#crmState").textContent = "Sauvegarde...";
+  const response = await fetch("/api/crm", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ quote_id: quoteId, status, next_action: nextAction }),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Erreur CRM");
+  renderCRM(data);
+  qs("#crmState").textContent = "Sauvegardé";
 }
 
 async function generateInvoice(type) {
@@ -448,6 +511,10 @@ function escapeHtml(value) {
   }[char]));
 }
 
+function escapeAttribute(value) {
+  return escapeHtml(value).replace(/`/g, "&#096;");
+}
+
 document.addEventListener("click", (event) => {
   const nav = event.target.closest(".nav-item");
   if (!nav) return;
@@ -473,6 +540,12 @@ qs("#copyMessageBtn").addEventListener("click", async () => {
   if (!state.currentMessage) return;
   await navigator.clipboard.writeText(state.currentMessage);
   setStatus("Message copié");
+});
+qs("#crmRows").addEventListener("click", (event) => {
+  const button = event.target.closest(".save-crm");
+  if (!button) return;
+  const row = button.closest("tr");
+  saveCRMRow(row).catch((error) => qs("#crmState").textContent = error.message);
 });
 qs("#followupMessages").addEventListener("click", async (event) => {
   const button = event.target.closest(".copy-followup");

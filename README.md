@@ -12,6 +12,8 @@ Agents disponibles :
   d'acompte ou de solde imprimable).
 - **Agent Relances Accura** : sert la promesse **Fondation** (devis envoyé -> messages
   J+3 / J+7 / J+15 prêts à copier).
+- **Mini CRM Accura** : sert la promesse **Fondation** (suivi devis envoyé -> relancé ->
+  signé -> perdu).
 - **Dashboard artisan local** : interface pour tester les agents en temps réel dans le
   navigateur.
 
@@ -299,6 +301,25 @@ cadre Meta Business et le consentement client seront propres.
 uv run python -m agents.relance_generator.run \
   --quote outputs/devis/acc-20260607-001.json
 ```
+
+---
+
+## Mini CRM Accura
+
+Le mini CRM suit les devis générés localement :
+
+- statut : `devis_envoye`, `relance`, `signe`, `perdu` ;
+- prochaine action commerciale ;
+- montant TTC et chantier repris du devis source.
+
+Le stockage est local et non versionné :
+
+```text
+outputs/crm/pipeline.json
+```
+
+Le CRM ne modifie pas les prix ni les documents. Il sert à piloter le suivi commercial dans
+le dashboard.
 
 ### Exemples de démonstration
 

@@ -232,8 +232,27 @@
       <section class="view placeholder" id="view-avis">
         <section class="panel"><h2>Avis Google</h2><p>Prochaine brique : message de demande d'avis après chantier terminé.</p></section>
       </section>
-      <section class="view placeholder" id="view-crm">
-        <section class="panel"><h2>CRM</h2><p>Prochaine brique : pipeline devis envoyé -> signé -> perdu.</p></section>
+      <section class="view" id="view-crm">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>CRM devis</h2>
+              <p>Pipeline local : devis envoyé, relancé, signé ou perdu.</p>
+            </div>
+            <span class="state" id="crmState">Prêt</span>
+          </div>
+
+          <div class="crm-stats" id="crmStats"></div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Devis</th><th>Client / chantier</th><th>Total TTC</th><th>Statut</th><th>Prochaine action</th><th>Action</th></tr>
+              </thead>
+              <tbody id="crmRows"></tbody>
+            </table>
+          </div>
+        </section>
       </section>
       <section class="view placeholder" id="view-config">
         <section class="panel">

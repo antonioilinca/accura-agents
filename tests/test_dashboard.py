@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from agents.dashboard.run import _examples, _generate_followups, _generate_invoice, _generate_quote
+from agents.dashboard.run import _crm_pipeline, _examples, _generate_followups, _generate_invoice, _generate_quote, _update_crm
 from agents.dashboard.onboarding import DEFAULT_PROFILE, build_devis_yaml
 from agents.devis_generator.config import charger_config
 from agents.devis_generator.generator import generer_devis
@@ -75,6 +75,23 @@ class DashboardTest(unittest.TestCase):
         self.assertEqual([m["jour"] for m in payload["messages"]], [3, 7, 15])
         self.assertIn("json", payload["exports"])
         json.dumps(payload, ensure_ascii=False)
+
+    def test_dashboard_crm_met_a_jour_statut_devis(self) -> None:
+        cfg = charger_config(ROOT / "config" / "devis.example.yaml")
+        doc = generer_devis(
+            "Salle de bain à Nantes 6m2, douche, vasque, carrelage, plomberie, gamme standard, photos disponibles.",
+            cfg,
+            id_devis="TEST-DASH-CRM",
+            utiliser_ia=False,
+        )
+        ecrire_exports(doc, ROOT / "outputs" / "devis")
+
+        pipeline = _update_crm("TEST-DASH-CRM", "signe", "Préparer facture acompte")
+        item = next(item for item in pipeline["items"] if item["id"] == "TEST-DASH-CRM")
+
+        self.assertEqual(item["status"], "signe")
+        self.assertEqual(item["next_action"], "Préparer facture acompte")
+        self.assertIn("signe", _crm_pipeline()["stats"])
 
 
 if __name__ == "__main__":

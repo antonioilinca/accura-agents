@@ -17,6 +17,7 @@ from urllib.parse import unquote
 
 from dotenv import load_dotenv
 
+from agents.crm_tracker.pipeline import build_pipeline, update_item
 from agents.devis_generator.config import charger_config
 from agents.devis_generator.generator import generer_devis
 from agents.devis_generator.render import ecrire_exports
@@ -234,6 +235,15 @@ def _generate_followups(quote_id: str) -> dict:
     return payload
 
 
+def _crm_pipeline() -> dict:
+    return build_pipeline(RACINE)
+
+
+def _update_crm(quote_id: str, status: str, next_action: str = "") -> dict:
+    update_item(RACINE, quote_id, status, next_action)
+    return _crm_pipeline()
+
+
 def _extract_multipart_file(headers, body: bytes, field_name: str) -> tuple[str, bytes]:
     content_type = headers.get("Content-Type", "")
     if not content_type.startswith("multipart/form-data"):
@@ -276,6 +286,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "recent_invoices": _recent_invoices(),
                 "recent_followups": _recent_followups(),
                 "recent_leads": _recent_leads(),
+                "crm": _crm_pipeline(),
                 "onboarding": load_profile(RACINE),
                 "plans": PLANS,
             })
@@ -306,6 +317,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
             return
         if self.path == "/api/relances":
             self._handle_relances()
+            return
+        if self.path == "/api/crm":
+            self._handle_crm()
             return
         if self.path == "/api/onboarding":
             self._handle_onboarding(apply_config=False)
@@ -355,6 +369,17 @@ class DashboardHandler(BaseHTTPRequestHandler):
             _json_response(self, _generate_followups(quote_id))
         except Exception as exc:
             _json_response(self, {"error": str(exc)}, status=500)
+
+    def _handle_crm(self) -> None:
+        length = int(self.headers.get("Content-Length", "0") or "0")
+        try:
+            data = json.loads(self.rfile.read(length).decode("utf-8"))
+            quote_id = str(data.get("quote_id", "")).strip()
+            status = str(data.get("status", "")).strip()
+            next_action = str(data.get("next_action", "")).strip()
+            _json_response(self, _update_crm(quote_id, status, next_action))
+        except Exception as exc:
+            _json_response(self, {"error": str(exc)}, status=400)
 
     def _handle_onboarding(self, apply_config: bool) -> None:
         length = int(self.headers.get("Content-Length", "0") or "0")
