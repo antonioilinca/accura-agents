@@ -43,6 +43,15 @@ Ne pas construire une fonctionnalité qui ne sert pas directement Fondation ou C
 - URL locale : `http://127.0.0.1:8787`
 - Permet de tester l'agent devis en temps réel depuis le navigateur.
 - Onglets prévus : Devis, Prospects, Relances, Avis Google, CRM, Config.
+- Onglet `Config` = onboarding artisan. Il sauvegarde `outputs/onboarding/artisan_profile.json`
+  et peut générer `config/devis.yaml` avec backup.
+
+### Onboarding artisan
+
+- Code : `agents/dashboard/onboarding.py`
+- Doc : `docs/ONBOARDING_ARTISAN.md`
+- Rôle : transformer l'abonnement en agents activés + configuration prix/métier/zone.
+- Important : aucun vrai client ne doit être onboardé sans remplir ces informations.
 
 ## Tests
 
@@ -72,4 +81,3 @@ le système doit fonctionner sans refactor lourd.
 2. Préparer l'activation OpenAI/Anthropic par simples variables d'environnement.
 3. Calibrer les prix avec 2 à 3 vrais devis d'artisans.
 4. Brancher ensuite WhatsApp/transcription seulement quand Meta Business est validé.
-

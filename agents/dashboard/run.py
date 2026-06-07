@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 from agents.devis_generator.config import charger_config
 from agents.devis_generator.generator import generer_devis
 from agents.devis_generator.render import ecrire_exports
+from agents.dashboard.onboarding import PLANS, apply_profile_to_devis_config, load_profile, save_profile
 
 RACINE = Path(__file__).resolve().parents[2]
 STATIC = Path(__file__).resolve().parent / "static"
@@ -152,7 +153,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "examples": _examples(),
                 "recent_quotes": _recent_quotes(),
                 "recent_leads": _recent_leads(),
+                "onboarding": load_profile(RACINE),
+                "plans": PLANS,
             })
+            return
+        if self.path == "/api/onboarding":
+            _json_response(self, {"profile": load_profile(RACINE), "plans": PLANS})
             return
         if self.path.startswith("/static/"):
             chemin = (STATIC / self.path.removeprefix("/static/")).resolve()
@@ -169,9 +175,18 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.send_error(404)
 
     def do_POST(self) -> None:  # noqa: N802
-        if self.path != "/api/devis":
-            self.send_error(404)
+        if self.path == "/api/devis":
+            self._handle_devis()
             return
+        if self.path == "/api/onboarding":
+            self._handle_onboarding(apply_config=False)
+            return
+        if self.path == "/api/onboarding/apply":
+            self._handle_onboarding(apply_config=True)
+            return
+        self.send_error(404)
+
+    def _handle_devis(self) -> None:
         length = int(self.headers.get("Content-Length", "0") or "0")
         try:
             data = json.loads(self.rfile.read(length).decode("utf-8"))
@@ -181,6 +196,19 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 _json_response(self, {"error": "Demande vide"}, status=400)
                 return
             _json_response(self, _generate_quote(text, quote_id=quote_id))
+        except Exception as exc:
+            _json_response(self, {"error": str(exc)}, status=500)
+
+    def _handle_onboarding(self, apply_config: bool) -> None:
+        length = int(self.headers.get("Content-Length", "0") or "0")
+        try:
+            data = json.loads(self.rfile.read(length).decode("utf-8"))
+            profile = data.get("profile") or data
+            saved = save_profile(RACINE, profile)
+            result = {"profile": saved, "paths": {"profile": str((RACINE / "outputs" / "onboarding" / "artisan_profile.json"))}}
+            if apply_config:
+                result["paths"] = apply_profile_to_devis_config(RACINE, saved)
+            _json_response(self, result)
         except Exception as exc:
             _json_response(self, {"error": str(exc)}, status=500)
 

@@ -296,6 +296,7 @@ Il permet de :
 - ouvrir les exports JSON, Markdown et HTML imprimable ;
 - voir les derniers devis générés ;
 - afficher une première vue des prospects issus de l'agent acquisition.
+- remplir l'onboarding artisan et générer une config `config/devis.yaml`.
 
 Lancer le dashboard :
 
@@ -311,3 +312,5 @@ http://127.0.0.1:8787
 
 Le dashboard utilise `config/devis.yaml` si le fichier existe, sinon
 `config/devis.example.yaml`.
+
+Voir aussi : `docs/ONBOARDING_ARTISAN.md`.

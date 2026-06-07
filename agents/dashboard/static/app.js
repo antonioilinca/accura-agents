@@ -1,4 +1,4 @@
-const state = { examples: [], currentMessage: "" };
+const state = { examples: [], currentMessage: "", onboarding: null, plans: {} };
 const qs = (selector) => document.querySelector(selector);
 const money = (value) => new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -9,9 +9,12 @@ async function bootstrap() {
   const response = await fetch("/api/bootstrap");
   const data = await response.json();
   state.examples = data.examples || [];
+  state.onboarding = data.onboarding || null;
+  state.plans = data.plans || {};
   renderExamples();
   renderRecentQuotes(data.recent_quotes || []);
   renderRecentLeads(data.recent_leads || []);
+  renderOnboarding();
   if (state.examples[0]) qs("#requestText").value = state.examples[0].text;
 }
 
@@ -119,6 +122,115 @@ function renderQuote(doc) {
   }).join("");
 }
 
+function renderOnboarding() {
+  if (!state.onboarding) return;
+  const profile = state.onboarding;
+  const form = qs("#onboardingForm");
+  form.plan.value = profile.plan || "fondation";
+  form.main_trade.value = profile.business?.main_trade || "plomberie";
+  form.company_name.value = profile.company?.name || "";
+  form.siret.value = profile.company?.siret || "";
+  form.phone.value = profile.company?.phone || "";
+  form.email.value = profile.company?.email || "";
+  form.address.value = profile.company?.address || "";
+  form.insurance.value = profile.company?.insurance || "";
+  form.vat_rate.value = profile.quote_settings?.vat_rate ?? 0.1;
+  form.margin_rate.value = profile.quote_settings?.margin_rate ?? 0.2;
+  form.hourly_rate_ht.value = profile.quote_settings?.hourly_rate_ht ?? 55;
+  form.deposit_rate.value = profile.quote_settings?.deposit_rate ?? 0.3;
+  form.minimum_job_ttc.value = profile.business?.minimum_job_ttc ?? 350;
+  form.validity_days.value = profile.quote_settings?.validity_days ?? 30;
+  form.service_area.value = (profile.business?.service_area || []).join(", ");
+  form.ideal_jobs.value = (profile.business?.ideal_jobs || []).join(", ");
+  form.excluded_jobs.value = (profile.business?.excluded_jobs || []).join(", ");
+  form.quote_items.value = (profile.quote_items || []).map((item) => [
+    item.code,
+    item.label,
+    item.unit,
+    item.unit_price_ht,
+    (item.keywords || []).join("|"),
+    item.quantity_from || "",
+  ].join(";")).join("\n");
+  updatePlanCapabilities();
+}
+
+function collectOnboardingProfile() {
+  const form = qs("#onboardingForm");
+  return {
+    plan: form.plan.value,
+    company: {
+      name: form.company_name.value,
+      siret: form.siret.value,
+      phone: form.phone.value,
+      email: form.email.value,
+      address: form.address.value,
+      insurance: form.insurance.value,
+    },
+    business: {
+      main_trade: form.main_trade.value,
+      secondary_trades: [],
+      service_area: splitList(form.service_area.value),
+      ideal_jobs: splitList(form.ideal_jobs.value),
+      excluded_jobs: splitList(form.excluded_jobs.value),
+      minimum_job_ttc: Number(form.minimum_job_ttc.value || 0),
+    },
+    quote_settings: {
+      vat_rate: Number(form.vat_rate.value || 0),
+      margin_rate: Number(form.margin_rate.value || 0),
+      hourly_rate_ht: Number(form.hourly_rate_ht.value || 0),
+      deposit_rate: Number(form.deposit_rate.value || 0),
+      validity_days: Number(form.validity_days.value || 30),
+    },
+    quote_items: parseQuoteItems(form.quote_items.value),
+  };
+}
+
+function parseQuoteItems(text) {
+  return text.split("\n").map((line) => line.trim()).filter(Boolean).map((line) => {
+    const [code, label, unit, unitPrice, keywords, quantityFrom] = line.split(";").map((part) => part?.trim() || "");
+    return {
+      code,
+      label,
+      unit: unit || "forfait",
+      unit_price_ht: Number(unitPrice || 0),
+      keywords: (keywords || "").split("|").map((item) => item.trim()).filter(Boolean),
+      ...(quantityFrom ? { quantity_from: quantityFrom } : {}),
+    };
+  }).filter((item) => item.code && item.label && item.unit_price_ht > 0);
+}
+
+function splitList(text) {
+  return text.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function updatePlanCapabilities() {
+  const plan = qs("#planSelect").value;
+  const details = state.plans[plan];
+  if (!details) return;
+  qs("#planCapabilities").innerHTML = `
+    <strong>${escapeHtml(details.label)} · ${escapeHtml(details.price)}</strong><br>
+    Agents activés : ${details.agents.map((agent) => `<code>${escapeHtml(agent)}</code>`).join(" ")}
+  `;
+}
+
+async function saveOnboarding(applyConfig = false) {
+  const endpoint = applyConfig ? "/api/onboarding/apply" : "/api/onboarding";
+  qs("#onboardingMessage").textContent = applyConfig ? "Application..." : "Sauvegarde...";
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ profile: collectOnboardingProfile() }),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Erreur onboarding");
+  state.onboarding = data.profile;
+  renderOnboarding();
+  qs("#onboardingStatus").textContent = applyConfig ? "Appliqué" : "Sauvegardé";
+  qs("#onboardingMessage").textContent = applyConfig
+    ? `Config devis prête : ${data.paths?.devis_config || ""}`
+    : "Profil sauvegardé";
+}
+
 function setStatus(text) {
   qs("#statusText").textContent = text;
 }
@@ -156,6 +268,12 @@ qs("#copyMessageBtn").addEventListener("click", async () => {
   await navigator.clipboard.writeText(state.currentMessage);
   setStatus("Message copié");
 });
+qs("#planSelect").addEventListener("change", updatePlanCapabilities);
+qs("#saveOnboardingBtn").addEventListener("click", () => {
+  saveOnboarding(false).catch((error) => qs("#onboardingMessage").textContent = error.message);
+});
+qs("#applyOnboardingBtn").addEventListener("click", () => {
+  saveOnboarding(true).catch((error) => qs("#onboardingMessage").textContent = error.message);
+});
 
 bootstrap().catch((error) => setStatus(error.message));
-

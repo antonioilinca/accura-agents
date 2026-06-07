@@ -5,6 +5,7 @@ import unittest
 from unittest.mock import patch
 
 from agents.dashboard.run import _examples, _generate_quote
+from agents.dashboard.onboarding import DEFAULT_PROFILE, build_devis_yaml
 
 
 class DashboardTest(unittest.TestCase):
@@ -25,6 +26,13 @@ class DashboardTest(unittest.TestCase):
         self.assertGreater(payload["totaux"]["total_ttc"], 0)
         self.assertIn("html", payload["exports"])
         json.dumps(payload, ensure_ascii=False)
+
+    def test_onboarding_payload_can_generate_devis_yaml(self) -> None:
+        data = build_devis_yaml(DEFAULT_PROFILE)
+
+        self.assertIn("artisan", data)
+        self.assertIn("metiers", data)
+        self.assertIn(DEFAULT_PROFILE["business"]["main_trade"], data["metiers"])
 
 
 if __name__ == "__main__":
