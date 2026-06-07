@@ -3,6 +3,7 @@
 
 # Config locale (propre à chaque artisan / zone)
 config/config.yaml
+config/devis.yaml
 
 # Données collées manuellement (peuvent contenir des infos personnelles)
 inbox/leads_manuels.md

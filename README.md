@@ -1,6 +1,17 @@
-# Accura Agents — Agent acquisition de leads
+# Accura Agents — agents Accura Ouest
 
 Agents IA d'**Accura Ouest** pour artisans de la rénovation (Nantes & Pays de la Loire).
+
+Agents disponibles :
+
+- **Agent acquisition de leads** : sert la promesse **Croissance** (2 à 3 prospects
+  qualifiés / semaine).
+- **Agent Devis Accura** : sert la promesse **Fondation** (demande brute ou transcription
+  vocale -> devis structuré prêt à envoyer).
+
+---
+
+## Agent acquisition de leads
 
 Premier agent : **acquisition de leads**. Il sert directement la promesse du pack
 **Croissance** vendu sur accuraouest.com : **2 à 3 prospects qualifiés livrés chaque
@@ -151,3 +162,83 @@ lourde), soit à l'API Claude (tool use). Pour une tâche de tri + scoring, un a
 opportunité suffit : pas besoin du framework Agent SDK complet (plus cher, dépendance Node
 sur le VPS). L'archi reste modulaire pour basculer vers des sous-agents quand on ajoutera
 la génération de devis.
+
+---
+
+## Agent Devis Accura
+
+L'agent devis transforme une demande artisan brute en **devis clair et vérifiable** :
+
+- input texte ou transcription vocale simulée ;
+- extraction du métier, type de chantier, ville/adresse, surface, prestations, matériaux,
+  contraintes, urgence et infos manquantes ;
+- questions de clarification si le devis n'est pas assez sûr ;
+- lignes de devis structurées avec prix configurables ;
+- calcul total HT, TVA, total TTC et acompte ;
+- exports JSON, Markdown et HTML imprimable en PDF.
+
+Il ne dépend pas encore de WhatsApp. Le branchement futur sera simple : WhatsApp/transcription
+devra seulement fournir un texte brut à `agents.devis_generator`.
+
+### Configuration devis
+
+La configuration exemple est versionnée ici :
+
+```bash
+config/devis.example.yaml
+```
+
+Pour un vrai artisan, copie-la puis adapte les prix et mentions :
+
+```bash
+cp config/devis.example.yaml config/devis.yaml
+```
+
+Dans `config/devis.yaml`, tu peux modifier sans toucher au code :
+
+- l'identité et les mentions légales de l'artisan ;
+- le taux de TVA ;
+- le taux de marge ;
+- le taux horaire ;
+- l'acompte recommandé ;
+- les postes types par métier ;
+- les villes connues autour de Nantes.
+
+`config/devis.yaml` n'est pas versionné, car il peut contenir les vrais tarifs d'un client.
+
+### Lancer un devis
+
+```bash
+uv run python -m agents.devis_generator.run --input "Bonjour, je veux refaire ma salle de bain à Nantes, environ 6m2, remplacer douche, meuble vasque, carrelage, plomberie. Gamme standard. Photos disponibles."
+```
+
+Ou depuis un fichier :
+
+```bash
+uv run python -m agents.devis_generator.run --input-file demande.txt
+```
+
+Les sorties sont écrites dans `outputs/devis/` :
+
+- `ACC-...json` : données structurées pour CRM / automatisation ;
+- `ACC-...md` : version lisible et éditable ;
+- `ACC-...html` : version propre à imprimer ou enregistrer en PDF ;
+- `dernier-devis.html` : dernier devis généré.
+
+### Pourquoi l'agent devis n'appelle pas encore un LLM ?
+
+Pour un devis, le risque n'est pas de manquer de créativité : c'est d'inventer un prix ou
+un périmètre. Le MVP utilise donc une extraction simple + une grille tarifaire modifiable.
+Quand un artisan paie et fournit ses vrais modèles, on pourra ajouter une couche LLM pour
+mieux comprendre les vocaux, mais le chiffrage restera contrôlé par la config.
+
+### Structure ajoutée
+
+```
+agents/devis_generator/
+├── config.py       # chargement config devis YAML
+├── generator.py    # extraction + chiffrage + totaux
+├── models.py       # types structurés
+├── render.py       # exports JSON / Markdown / HTML
+└── run.py          # point d'entrée local
+```

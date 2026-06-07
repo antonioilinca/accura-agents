@@ -1,0 +1,152 @@
+# ============================================================================
+# Agent Devis Accura — configuration artisan
+# Copie ce fichier en config/devis.yaml puis adapte les prix, mentions et postes.
+# config/devis.yaml n'est PAS versionné : chaque artisan garde ses tarifs.
+# ============================================================================
+
+artisan:
+  nom: "Entreprise Démo Accura"
+  adresse: "Nantes et Pays de la Loire"
+  telephone: "07 61 77 20 65"
+  email: "contact@accuraouest.com"
+  siret: "SIRET à compléter"
+  assurance_decennale: "Assurance décennale à compléter"
+  mentions:
+    - "Acompte conseillé avant démarrage, solde à réception des travaux."
+    - "Délais et prix à confirmer après visite technique ou photos exploitables."
+
+pricing:
+  taux_tva: "0.10"                 # 10% rénovation logement > 2 ans ; adapter selon cas
+  taux_marge: "0.20"               # marge appliquée aux postes configurés
+  main_oeuvre_heure_ht: "55"
+  validite_jours: 30
+  acompte_pourcentage: "0.30"
+
+zone:
+  villes_connues:
+    - Nantes
+    - Saint-Herblain
+    - Rezé
+    - Saint-Sébastien-sur-Loire
+    - Orvault
+    - Vertou
+    - Couëron
+    - Carquefou
+    - Bouguenais
+    - La Chapelle-sur-Erdre
+    - Sainte-Luce-sur-Loire
+    - Basse-Goulaine
+
+sortie:
+  dossier: outputs/devis
+
+metiers:
+  plomberie:
+    libelle: "Plomberie / salle de bain"
+    mots_cles: ["plomberie", "plombier", "salle de bain", "douche", "vasque", "wc", "chauffe-eau", "sanitaire"]
+    questions_requises: ["ville", "surface", "prestations", "gamme_materiaux", "photos"]
+    conditions:
+      - "Hors modification lourde de structure, reprise complète des réseaux cachés ou désamiantage."
+      - "Appareils sanitaires inclus uniquement si précisés dans les lignes de devis."
+    postes:
+      - code: protection_depose
+        libelle: "Protection du chantier et dépose des éléments existants"
+        unite: "forfait"
+        prix_unitaire_ht: "320"
+        mots_cles: ["refaire", "remplacer", "dépose", "depose", "salle de bain"]
+        materiaux: ["protections", "évacuation gravats"]
+      - code: douche
+        libelle: "Fourniture et pose d'une douche standard"
+        unite: "forfait"
+        prix_unitaire_ht: "950"
+        mots_cles: ["douche"]
+        materiaux: ["receveur", "paroi", "robinetterie"]
+      - code: meuble_vasque
+        libelle: "Fourniture et pose meuble vasque"
+        unite: "forfait"
+        prix_unitaire_ht: "520"
+        mots_cles: ["vasque", "meuble"]
+        materiaux: ["meuble vasque", "mitigeur", "siphon"]
+      - code: reseaux_plomberie
+        libelle: "Adaptation plomberie alimentation et évacuation"
+        unite: "forfait"
+        prix_unitaire_ht: "680"
+        mots_cles: ["plomberie", "sanitaire", "douche", "vasque", "wc"]
+        materiaux: ["PER/cuivre", "PVC évacuation", "raccords"]
+      - code: carrelage_sol_mur
+        libelle: "Pose carrelage / faïence salle de bain"
+        unite: "m²"
+        prix_unitaire_ht: "82"
+        quantite_depuis: "surface_m2"
+        mots_cles: ["carrelage", "faïence", "faience", "salle de bain"]
+        materiaux: ["carrelage", "colle", "joints"]
+      - code: chauffe_eau_200l
+        libelle: "Remplacement chauffe-eau 200L pose comprise"
+        unite: "forfait"
+        prix_unitaire_ht: "850"
+        mots_cles: ["chauffe-eau", "ballon", "200l"]
+        materiaux: ["chauffe-eau 200L", "groupe de sécurité", "raccords"]
+
+  electricite:
+    libelle: "Électricité"
+    mots_cles: ["électricité", "electricite", "électricien", "tableau", "prise", "luminaire", "mise aux normes"]
+    questions_requises: ["ville", "surface", "prestations", "photos"]
+    conditions:
+      - "Hors reprise complète des saignées, faux plafonds ou mise en conformité non visible sans diagnostic."
+    postes:
+      - code: diagnostic_elec
+        libelle: "Diagnostic rapide et préparation intervention"
+        unite: "forfait"
+        prix_unitaire_ht: "160"
+        mots_cles: ["électricité", "electricite", "mise aux normes", "tableau"]
+      - code: tableau
+        libelle: "Remplacement tableau électrique standard"
+        unite: "forfait"
+        prix_unitaire_ht: "780"
+        mots_cles: ["tableau"]
+      - code: point_elec
+        libelle: "Création ou remplacement de point électrique"
+        unite: "unité"
+        prix_unitaire_ht: "95"
+        quantite_defaut: "4"
+        mots_cles: ["prise", "interrupteur", "luminaire", "point lumineux"]
+
+  peinture:
+    libelle: "Peinture / finitions"
+    mots_cles: ["peinture", "peintre", "mur", "plafond", "enduit"]
+    questions_requises: ["ville", "surface", "prestations", "photos"]
+    conditions:
+      - "Support supposé sain, sec et normalement préparé."
+    postes:
+      - code: preparation_supports
+        libelle: "Préparation supports, rebouchage léger et protection"
+        unite: "m²"
+        prix_unitaire_ht: "14"
+        quantite_depuis: "surface_m2"
+        mots_cles: ["peinture", "mur", "plafond", "enduit"]
+      - code: peinture_2_couches
+        libelle: "Application peinture deux couches"
+        unite: "m²"
+        prix_unitaire_ht: "22"
+        quantite_depuis: "surface_m2"
+        mots_cles: ["peinture", "mur", "plafond"]
+
+  renovation_generale:
+    libelle: "Rénovation générale"
+    mots_cles: ["rénovation", "renovation", "refaire", "travaux", "appartement", "maison"]
+    questions_requises: ["ville", "surface", "prestations", "photos"]
+    conditions:
+      - "Chiffrage indicatif multi-lots à affiner après visite technique."
+    postes:
+      - code: coordination
+        libelle: "Préparation, coordination et protection chantier"
+        unite: "forfait"
+        prix_unitaire_ht: "450"
+        mots_cles: ["rénovation", "renovation", "refaire", "travaux"]
+      - code: main_oeuvre_renovation
+        libelle: "Main-d'oeuvre rénovation intérieure estimative"
+        unite: "m²"
+        prix_unitaire_ht: "95"
+        quantite_depuis: "surface_m2"
+        mots_cles: ["rénovation", "renovation", "refaire", "travaux"]
+
