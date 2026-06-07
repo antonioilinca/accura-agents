@@ -128,9 +128,17 @@ def qualifier(client: LLMClient, cfg: Config, leads: list[RawLead], cost: CostTr
                     fraicheur=str(sig.get("fraicheur", "inconnue")),
                     signal_budget=str(sig.get("signal_budget", "inconnu")),
                     zone_ok=bool(sig.get("zone_ok", True)),
+                    contactabilite=str(sig.get("contactabilite", "moyenne")),
                 ),
                 message_contact=str(data.get("message_contact", "")),
                 qualified_at=maintenant,
+                type_opportunite=str(data.get("type_opportunite", "opportunite_a_demarcher")),
+                canal_recommande=str(data.get("canal_recommande", "courrier")),
+                urgence_contact=str(data.get("urgence_contact", "cette_semaine")),
+                valeur_potentielle=str(data.get("valeur_potentielle", "moyenne")),
+                angle_approche=str(data.get("angle_approche", "")),
+                prochaine_action=str(data.get("prochaine_action", "")),
+                script_appel=str(data.get("script_appel", "")),
             )
         )
 

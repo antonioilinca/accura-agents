@@ -82,10 +82,13 @@ llm:
   api_key_env: GROQ_API_KEY
   modele_tri: llama-3.3-70b-versatile
   modele_qualif: llama-3.3-70b-versatile
+  max_retry_after_seconds: 120  # au-delà, le run saute le lead au lieu d'attendre trop longtemps
 
 qualification:
   seuil_livraison: 60     # ne livre que les leads dont le score est >= à cette valeur
   taille_lot_tri: 25      # nombre d'annonces triées par appel
+  objectif_hebdo_min: 2   # promesse pack Croissance : 2 à 3 prospects qualifiés / semaine
+  objectif_hebdo_max: 3   # l'agent ne dépasse pas ce plafond de livraison hebdomadaire
 
 sortie:
   dossier: outputs

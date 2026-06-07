@@ -44,6 +44,9 @@ main { max-width:1120px; margin:26px auto 0; padding:0 24px;
 .tag b { font-weight:700; }
 .why { font-size:13px; color:#334155; margin:2px 0 12px; }
 .why b { color:var(--ink); }
+.action { font-size:13px; background:#fff7ed; border:1px solid #fed7aa; border-radius:10px;
+          padding:10px 12px; margin:0 0 12px; color:#431407; }
+.action b { color:#9a3412; }
 .contact { margin-top:auto; background:#f0f7ff; border:1px solid #cfe0fb; border-radius:10px;
            padding:10px 12px; }
 .contact-head { display:flex; justify-content:space-between; align-items:center;
@@ -96,6 +99,8 @@ def _carte(l: dict) -> str:
         _tag("Ampleur", sig.get("ampleur_travaux", "?")),
         _tag("Fraîcheur", sig.get("fraicheur", "?")),
         _tag("Budget", sig.get("signal_budget", "?")),
+        _tag("Contact", sig.get("contactabilite", "?")),
+        _tag("Canal", l.get("canal_recommande", "?")),
     ])
     return f"""<article class="card">
   <div class="card-head">
@@ -109,9 +114,17 @@ def _carte(l: dict) -> str:
   <div class="projet">{html.escape(l.get('description') or '')}</div>
   <div class="tags">{tags}</div>
   <div class="why"><b>Pourquoi ce lead</b><br>{html.escape(l.get('justification') or '')}</div>
+  <div class="action">
+    <b>Action recommandée</b><br>{html.escape(l.get('prochaine_action') or 'À contacter')}
+    <br><b>Angle</b><br>{html.escape(l.get('angle_approche') or 'À adapter')}
+  </div>
   <div class="contact">
     <div class="contact-head"><span>Message de contact</span><button onclick="cp(this)">Copier</button></div>
     <p>{html.escape(l.get('message_contact') or '')}</p>
+  </div>
+  <div class="contact" style="margin-top:10px">
+    <div class="contact-head"><span>Script appel / visite</span><button onclick="cp(this)">Copier</button></div>
+    <p>{html.escape(l.get('script_appel') or '')}</p>
   </div>
 </article>"""
 
@@ -120,6 +133,7 @@ def rendre_html(payload: dict) -> str:
     metier = payload.get("metier", "")
     date = _fr_date(payload.get("date", ""))
     s = payload.get("stats", {}) or {}
+    p = payload.get("promesse_accura", {}) or {}
     cout = payload.get("cout", {}).get("cout_usd_estime", 0)
     leads = payload.get("leads", []) or []
 
@@ -134,12 +148,14 @@ def rendre_html(payload: dict) -> str:
 <title>Leads {html.escape(metier)} — {date}</title>
 <style>{CSS}</style></head><body>
 <header><div class="wrap">
-  <div class="brand">Accura Ouest <span>· leads qualifiés</span></div>
+  <div class="brand">Accura Ouest <span>· prospects qualifiés Croissance</span></div>
   <h1>{html.escape(metier)} · {date}</h1>
   <div class="stats">
     <div class="stat"><b>{s.get('scannes', 0)}</b><span>scannés</span></div>
     <div class="stat"><b>{s.get('tries', 0)}</b><span>triés</span></div>
-    <div class="stat"><b>{s.get('livres', 0)}</b><span>leads livrés</span></div>
+    <div class="stat"><b>{s.get('eligibles', 0)}</b><span>éligibles</span></div>
+    <div class="stat"><b>{s.get('livres', 0)}</b><span>livrés ce run</span></div>
+    <div class="stat"><b>{p.get('livres_cette_semaine', s.get('livres', 0))}/{p.get('objectif_hebdo_max', 3)}</b><span>promesse semaine</span></div>
     <div class="stat"><b>${cout}</b><span>coût du run</span></div>
   </div>
 </div></header>

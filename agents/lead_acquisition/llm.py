@@ -41,6 +41,7 @@ class LLMClient:
         self.provider = cfg.llm_provider
         self.base_url = (cfg.llm_base_url or "").rstrip("/")
         self.api_key = os.environ.get(cfg.llm_api_key_env, "") if cfg.llm_api_key_env else ""
+        self.max_retry_after_seconds = int(getattr(cfg, "llm_max_retry_after_seconds", 120))
         self._anthropic = None
         if self.provider == "anthropic":
             import anthropic  # import paresseux
@@ -107,6 +108,11 @@ class LLMClient:
             r = requests.post(url, headers=headers, json=payload, timeout=90)
             if r.status_code == 429:  # rate limit : on respecte Retry-After
                 attente = float(r.headers.get("retry-after", 3)) + 0.5
+                if attente > self.max_retry_after_seconds:
+                    raise requests.HTTPError(
+                        f"rate limit trop long ({attente:.1f}s > "
+                        f"{self.max_retry_after_seconds}s)"
+                    )
                 log.info("rate limit, attente %.1fs", attente)
                 time.sleep(min(attente, 30))
                 continue

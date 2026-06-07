@@ -37,12 +37,15 @@ class Config:
     sources: dict[str, SourceConfig]
     seuil_livraison: int
     taille_lot_tri: int
+    objectif_hebdo_min: int
+    objectif_hebdo_max: int
     # LLM
     llm_provider: str          # openai_compat | anthropic
     llm_base_url: str | None
     llm_api_key_env: str
     modele_tri: str
     modele_qualif: str
+    llm_max_retry_after_seconds: int
     # divers
     dossier_sortie: Path
     prix_usd_par_million: dict[str, float]
@@ -104,11 +107,14 @@ def charger_config(chemin_config: str | Path) -> Config:
         sources=sources,
         seuil_livraison=int(qualif.get("seuil_livraison", 60)),
         taille_lot_tri=int(qualif.get("taille_lot_tri", 25)),
+        objectif_hebdo_min=int(qualif.get("objectif_hebdo_min", 2)),
+        objectif_hebdo_max=int(qualif.get("objectif_hebdo_max", 3)),
         llm_provider=str(llm.get("provider", "openai_compat")),
         llm_base_url=llm.get("base_url"),
         llm_api_key_env=str(llm.get("api_key_env", "GROQ_API_KEY")),
         modele_tri=str(llm.get("modele_tri", "llama-3.3-70b-versatile")),
         modele_qualif=str(llm.get("modele_qualif", "llama-3.3-70b-versatile")),
+        llm_max_retry_after_seconds=int(llm.get("max_retry_after_seconds", 120)),
         dossier_sortie=racine / (sortie.get("dossier") or "outputs"),
         prix_usd_par_million=dict(data.get("pricing_usd_par_million") or {}),
         racine=racine,

@@ -41,6 +41,7 @@ class Signaux:
     fraicheur: str = "inconnue"          # recent | moyen | ancien
     signal_budget: str = "inconnu"       # fort | moyen | faible | inconnu
     zone_ok: bool = True
+    contactabilite: str = "moyenne"      # forte | moyenne | faible
 
 
 @dataclass
@@ -54,6 +55,13 @@ class QualifiedLead:
     signaux: Signaux
     message_contact: str      # brouillon de prise de contact
     qualified_at: str         # ISO datetime UTC
+    type_opportunite: str = "opportunite_a_demarcher"
+    canal_recommande: str = "courrier_ou_visite"
+    urgence_contact: str = "cette_semaine"
+    valeur_potentielle: str = "moyenne"
+    angle_approche: str = ""
+    prochaine_action: str = ""
+    script_appel: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -71,4 +79,11 @@ class QualifiedLead:
             "signaux": asdict(self.signaux),
             "message_contact": self.message_contact,
             "qualified_at": self.qualified_at,
+            "type_opportunite": self.type_opportunite,
+            "canal_recommande": self.canal_recommande,
+            "urgence_contact": self.urgence_contact,
+            "valeur_potentielle": self.valeur_potentielle,
+            "angle_approche": self.angle_approche,
+            "prochaine_action": self.prochaine_action,
+            "script_appel": self.script_appel,
         }

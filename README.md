@@ -2,11 +2,15 @@
 
 Agents IA d'**Accura Ouest** pour artisans de la rénovation (Nantes & Pays de la Loire).
 
-Premier agent : **acquisition de leads**. Il scanne chaque jour des signaux publics et
-légaux (projets de travaux déclarés en mairie + demandes collées à la main), repère les
-**opportunités de chantier** pour un métier donné autour de Nantes, leur donne un score
-de 0 à 100, et livre les meilleures dans un fichier + un récap, avec un brouillon de
-message de prise de contact.
+Premier agent : **acquisition de leads**. Il sert directement la promesse du pack
+**Croissance** vendu sur accuraouest.com : **2 à 3 prospects qualifiés livrés chaque
+semaine** à l'artisan abonné.
+
+Il scanne chaque jour des signaux publics et légaux (projets de travaux déclarés en mairie
++ demandes collées à la main), repère les opportunités de chantier pour un métier donné
+autour de Nantes, les qualifie, puis livre une **fiche prospect actionnable** : score,
+raison, valeur potentielle, canal recommandé, urgence, prochaine action, message de
+contact et script court d'appel / visite.
 
 > Type de leads : ce sont des **opportunités à démarcher** (adresse + nature des travaux),
 > pas des demandes entrantes. L'artisan approche le prospect (courrier ou visite).
@@ -43,6 +47,8 @@ Dans `config/config.yaml` tu règles, **sans toucher au code** :
 - `metier:` → `plombier`, `electricien` ou `couvreur` (fichiers dans `config/metiers/`)
 - `zone:` → la liste des communes scannées (par défaut : les 24 communes de Nantes Métropole)
 - `qualification.seuil_livraison:` → le score minimum pour qu'un lead soit livré (défaut 60)
+- `qualification.objectif_hebdo_min/max:` → promesse Croissance (défaut 2 à 3 prospects
+  qualifiés / semaine). L'agent ne dépasse pas le plafond hebdomadaire.
 
 > Pour un nouveau métier, copie un fichier de `config/metiers/` et adapte ses mots-clés.
 
@@ -52,11 +58,18 @@ Dans `config/config.yaml` tu règles, **sans toucher au code** :
 uv run python -m agents.lead_acquisition.run
 ```
 
-À la fin, le récap s'affiche et deux fichiers sont écrits dans `outputs/` :
+À la fin, le récap s'affiche et plusieurs fichiers sont écrits dans `outputs/` :
 - `leads-AAAA-MM-JJ.json` → les leads livrés (données structurées)
 - `recap-AAAA-MM-JJ.md` → le résumé lisible (top leads + brouillons de contact + coût du run)
+- `leads-AAAA-MM-JJ.html` et `index.html` → page visuelle à ouvrir pour Younès / l'artisan
+- `suivi-prospects-METIER.csv` → pipeline commercial à tenir à jour
+- `bilan-croissance-AAAA-WSS.md` → preuve hebdomadaire de la promesse Croissance
 
 Un même chantier n'est jamais livré deux fois (historique `outputs/_seen.json`).
+
+Statuts recommandés dans le suivi : `a_contacter` → `contacte` → `relance` →
+`devis_envoye` → `signe` ou `perdu`. C'est ce suivi qui prouve la valeur Accura :
+prospects livrés, actions faites, devis générés, chantiers signés.
 
 ## 5. Lancer tous les jours (automatique, sur le VPS)
 
@@ -121,7 +134,7 @@ accura-agents/
 │       ├── pipeline.py          # orchestration génération -> qualif -> livraison
 │       ├── sources/             # connecteurs (urbanisme_nantes, sitadel, inbox_manuelle)
 │       ├── qualify.py           # tri Haiku + scoring Sonnet (sortie structurée)
-│       ├── deliver.py           # écriture JSON + récap + déduplication
+│       ├── deliver.py           # JSON + récap + HTML + suivi commercial + quota hebdo
 │       ├── prompts.py           # instructions IA, paramétrées par métier
 │       └── models.py            # types de données
 ├── inbox/                       # demandes collées à la main

@@ -52,15 +52,53 @@ OUTIL_QUALIF = {
                     "fraicheur": {"type": "string", "enum": ["recent", "moyen", "ancien"]},
                     "signal_budget": {"type": "string", "enum": ["fort", "moyen", "faible", "inconnu"]},
                     "zone_ok": {"type": "boolean"},
+                    "contactabilite": {"type": "string", "enum": ["forte", "moyenne", "faible"]},
                 },
-                "required": ["adequation_metier", "ampleur_travaux", "signal_budget", "zone_ok"],
+                "required": [
+                    "adequation_metier", "ampleur_travaux", "signal_budget",
+                    "zone_ok", "contactabilite",
+                ],
+            },
+            "type_opportunite": {
+                "type": "string",
+                "enum": ["demande_entrante", "opportunite_a_demarcher", "veille_strategique"],
+                "description": "Nature commerciale de l'opportunité.",
+            },
+            "canal_recommande": {
+                "type": "string",
+                "enum": ["appel", "courrier", "visite_chantier", "email", "whatsapp", "a_verifier"],
+            },
+            "urgence_contact": {
+                "type": "string",
+                "enum": ["aujourdhui", "48h", "cette_semaine", "faible"],
+            },
+            "valeur_potentielle": {
+                "type": "string",
+                "enum": ["forte", "moyenne", "faible", "inconnue"],
+            },
+            "angle_approche": {
+                "type": "string",
+                "description": "Angle commercial concret à utiliser par l'artisan, 1 phrase.",
+            },
+            "prochaine_action": {
+                "type": "string",
+                "description": "Action suivante claire pour l'artisan, 1 phrase.",
             },
             "message_contact": {
                 "type": "string",
                 "description": "brouillon de prise de contact, 3 à 5 phrases, sans prix",
             },
+            "script_appel": {
+                "type": "string",
+                "description": "Script court d'appel ou de visite, 2 à 4 phrases, ton artisan.",
+            },
         },
-        "required": ["metier_pertinent", "score", "justification", "signaux", "message_contact"],
+        "required": [
+            "metier_pertinent", "score", "justification", "signaux",
+            "type_opportunite", "canal_recommande", "urgence_contact",
+            "valeur_potentielle", "angle_approche", "prochaine_action",
+            "message_contact", "script_appel",
+        ],
     },
 }
 
@@ -98,6 +136,12 @@ def system_qualif(cfg: Config) -> str:
 chantier pour un artisan **{m.libelle}** (métier : {m.nom}) intervenant sur : {communes} \
 (rayon d'environ {cfg.rayon_km} km autour de Nantes).
 
+PROMESSE COMMERCIALE ACCURA
+Cette sortie sert au pack Croissance vendu à l'artisan : "2 à 3 prospects qualifiés livrés \
+chaque semaine". Tu ne livres donc pas une donnée brute. Tu dois produire une fiche exploitable : \
+pourquoi ce chantier est intéressant, comment l'approcher, par quel canal, avec quelle urgence, \
+et quelle action faire maintenant.
+
 CONTEXTE DES DONNÉES
 Les opportunités proviennent d'autorisations d'urbanisme publiques (déclarations préalables, \
 permis de construire) et de demandes collées manuellement. Elles décrivent un PROJET, rarement \
@@ -130,9 +174,20 @@ rénovation / réhabilitation, aménagement de combles, changement de destinatio
 collectif (jusqu'à environ 4 logements).
 - Pénalise tout ce qui figure dans la liste « à écarter ».
 - Sois exigeant : un bon lead est un chantier où l'artisan a une vraie chance de décrocher un devis.
+- Si la source est une autorisation d'urbanisme, type_opportunite="opportunite_a_demarcher" \
+et le canal recommandé doit être courrier ou visite_chantier, sauf indice contraire.
+- Si la source est inbox_manuelle et ressemble à une demande explicite de particulier, \
+type_opportunite="demande_entrante" et urgence_contact="aujourdhui" ou "48h".
+- contactabilite mesure la facilité à agir : forte si demande entrante ou adresse exploitable, \
+moyenne si adresse/projet partiels, faible si trop flou.
+- valeur_potentielle doit refléter le panier probable pour l'artisan, pas la taille totale du chantier.
 
 MESSAGE DE CONTACT (champ message_contact)
 Rédige un brouillon que l'artisan pourra adapter pour approcher ce prospect (courrier ou visite). \
 Ton professionnel et chaleureux, 3 à 5 phrases, français correct. AUCUN prix. AUCUN tiret cadratin. \
 Mentionne le type de projet repéré et propose un échange ou un devis gratuit. N'invente jamais le \
-nom de la personne : cette donnée n'est pas disponible."""
+nom de la personne : cette donnée n'est pas disponible.
+
+SCRIPT D'APPEL / VISITE
+Rédige comme un artisan parlerait, pas comme une agence marketing. Simple, direct, local, \
+sans promesse abusive."""
