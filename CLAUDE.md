@@ -80,6 +80,22 @@ Ne pas construire une fonctionnalité qui ne sert pas directement Fondation ou C
 - Le lien `company.google_review_url` est renseigné depuis l'onboarding. Si absent, le
   message propose de rechercher l'entreprise sur Google.
 
+### Agent Vocal Accura
+
+- Dossier : `agents/voice_intake`
+- Commande terminal :
+  `uv run --extra voice python -m agents.voice_intake.run --audio memo.m4a --devis`
+- Sert la promesse Fondation : c'est le canal d'entrée « vous dictez, le devis sort ».
+- Entrée : un fichier audio (mémo vocal). Sortie : texte transcrit à RELIRE, puis devis
+  brouillon optionnel avec `--devis`.
+- Transcription pluggable (comme la couche LLM) via `ACCURA_TRANSCRIBE_PROVIDER` :
+  - `local` (défaut) : faster-whisper, gratuit, hors-ligne. Extra `voice` à installer
+    (`uv pip install faster-whisper`). Modèle via `ACCURA_WHISPER_MODEL` (défaut `small`).
+  - `openai` : API Whisper (`OPENAI_API_KEY`), qualité maximale, payant, à activer plus tard.
+- Important : human-in-the-loop. Le texte est relu/corrigé par l'artisan avant tout envoi.
+  L'IA ne décide jamais des prix ; un nombre dicté en lettres fait poser une question de
+  confirmation plutôt qu'une invention. La qualité dépend de la clarté de la voix.
+
 ### Dashboard artisan local
 
 - Dossier : `agents/dashboard`
@@ -105,7 +121,7 @@ Commande de validation :
 uv run python -m unittest discover
 ```
 
-État au 7 juin 2026 : 10 tests passent.
+État au 7 juin 2026 : 42 tests passent.
 
 ## Règle technique importante
 

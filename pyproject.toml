@@ -10,5 +10,11 @@ dependencies = [
     "python-dotenv>=1.0",
 ]
 
+# Extra optionnel : transcription vocale locale (agent voice_intake).
+# Activer avec : uv pip install faster-whisper  (ou: uv sync --extra voice)
+# Le cœur du projet n'en dépend pas (import paresseux dans voice_intake).
+[project.optional-dependencies]
+voice = ["faster-whisper>=1.0"]
+
 [tool.uv]
 package = false

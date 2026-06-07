@@ -16,6 +16,8 @@ Agents disponibles :
   signé -> perdu).
 - **Agent Avis Google Accura** : sert la promesse **Fondation** (chantier terminé ->
   message de demande d'avis prêt à copier).
+- **Agent Vocal Accura** : sert la promesse **Fondation** (mémo vocal -> texte relu ->
+  devis brouillon ; transcription locale gratuite).
 - **Dashboard artisan local** : interface pour tester les agents en temps réel dans le
   navigateur.
 
@@ -378,6 +380,35 @@ agents/devis_generator/
 ```
 
 ---
+
+## Agent Vocal Accura
+
+Transforme un mémo vocal d'artisan en texte exploitable, puis en devis brouillon. C'est le
+canal d'entrée de la promesse Fondation « vous dictez, le devis sort ».
+
+- Transcription locale et gratuite (faster-whisper) par défaut, hors-ligne.
+- Bascule possible vers l'API Whisper d'OpenAI (qualité maximale, payant) sans refactor.
+- Human-in-the-loop : le texte est relu et corrigé par l'artisan avant le devis. Les prix
+  viennent toujours de la config artisan, jamais de la voix.
+
+### Activer le mode vocal local
+
+```bash
+uv pip install faster-whisper        # ou : uv sync --extra voice
+```
+
+### Transcrire un vocal (et générer un devis brouillon)
+
+```bash
+uv run --extra voice python -m agents.voice_intake.run --audio memo.m4a --devis
+```
+
+Réglages par variables d'environnement : `ACCURA_TRANSCRIBE_PROVIDER` (local|openai),
+`ACCURA_WHISPER_MODEL` (tiny|base|small|medium), `OPENAI_API_KEY` pour le mode openai.
+
+La qualité dépend de la clarté de la voix : une voix humaine claire donne un texte quasi
+parfait ; un nombre dicté en lettres fait poser une question de confirmation plutôt qu'une
+invention. Rien n'est envoyé automatiquement.
 
 ## Dashboard artisan local
 
