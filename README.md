@@ -8,6 +8,8 @@ Agents disponibles :
   qualifiés / semaine).
 - **Agent Devis Accura** : sert la promesse **Fondation** (demande brute ou transcription
   vocale -> devis structuré prêt à envoyer).
+- **Agent Factures Accura** : sert la promesse **Fondation** (devis validé -> facture
+  d'acompte ou de solde imprimable).
 - **Dashboard artisan local** : interface pour tester les agents en temps réel dans le
   navigateur.
 
@@ -245,6 +247,35 @@ Les sorties sont écrites dans `outputs/devis/` :
 - `ACC-...md` : version lisible et éditable ;
 - `ACC-...html` : version propre à imprimer ou enregistrer en PDF ;
 - `dernier-devis.html` : dernier devis généré.
+
+---
+
+## Agent Factures Accura
+
+L'agent factures transforme un devis JSON existant en **facture d'acompte** ou **facture de
+solde** :
+
+- identité artisan, logo, SIRET et assurance repris du devis ;
+- total HT, TVA, total TTC, acompte et solde repris du devis source ;
+- exports JSON, Markdown et HTML imprimable en PDF dans `outputs/factures/`.
+
+Il n'utilise pas l'IA : les montants facturés restent contrôlés par le devis/config.
+
+### Lancer une facture
+
+```bash
+uv run python -m agents.facture_generator.run \
+  --quote outputs/devis/acc-20260607-001.json \
+  --type acompte
+```
+
+Pour le solde :
+
+```bash
+uv run python -m agents.facture_generator.run \
+  --quote outputs/devis/acc-20260607-001.json \
+  --type solde
+```
 
 ### Exemples de démonstration
 

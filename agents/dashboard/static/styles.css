@@ -141,6 +141,9 @@ tr:last-child td { border-bottom: 0; }
 .exports { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
 .exports a, .recent a { color: var(--navy); text-decoration: none; font-weight: 800; font-size: 13px; }
 .recent { margin-top: 18px; }
+.invoice-tool { display: grid; grid-template-columns: minmax(260px, 420px) 1fr; gap: 14px; align-items: end; margin-bottom: 16px; }
+.invoice-summary { margin-top: 4px; }
+#invoiceStatus { color: var(--muted); font-size: 13px; margin-left: auto; }
 .placeholder .panel { min-height: 260px; display: grid; align-content: center; }
 code { background: #eef2f6; padding: 2px 5px; border-radius: 4px; }
 .onboarding-form { display: grid; gap: 14px; }
@@ -166,6 +169,7 @@ label { display: grid; gap: 6px; color: #344054; font-size: 13px; font-weight: 7
   .nav { grid-template-columns: repeat(3, 1fr); }
   .workspace { grid-template-columns: 1fr; }
   .summary-grid { grid-template-columns: repeat(2, 1fr); }
+  .invoice-tool { grid-template-columns: 1fr; }
   .form-grid { grid-template-columns: 1fr; }
   .topbar { align-items: flex-start; flex-direction: column; }
 }

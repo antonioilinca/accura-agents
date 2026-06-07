@@ -2,10 +2,17 @@ from __future__ import annotations
 
 import json
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
-from agents.dashboard.run import _examples, _generate_quote
+from agents.dashboard.run import _examples, _generate_invoice, _generate_quote
 from agents.dashboard.onboarding import DEFAULT_PROFILE, build_devis_yaml
+from agents.devis_generator.config import charger_config
+from agents.devis_generator.generator import generer_devis
+from agents.devis_generator.render import ecrire_exports
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class DashboardTest(unittest.TestCase):
@@ -33,6 +40,24 @@ class DashboardTest(unittest.TestCase):
         self.assertIn("artisan", data)
         self.assertIn("metiers", data)
         self.assertIn(DEFAULT_PROFILE["business"]["main_trade"], data["metiers"])
+
+    def test_dashboard_genere_facture_depuis_devis(self) -> None:
+        cfg = charger_config(ROOT / "config" / "devis.example.yaml")
+        doc = generer_devis(
+            "Salle de bain à Nantes 6m2, douche, vasque, carrelage, plomberie, gamme standard, photos disponibles.",
+            cfg,
+            id_devis="TEST-DASH-INVOICE",
+            utiliser_ia=False,
+        )
+        ecrire_exports(doc, ROOT / "outputs" / "devis")
+
+        payload = _generate_invoice("TEST-DASH-INVOICE", invoice_type="acompte")
+
+        self.assertEqual(payload["id_devis"], "TEST-DASH-INVOICE")
+        self.assertEqual(payload["type_facture"], "acompte")
+        self.assertGreater(payload["totaux"]["total_ttc"], 0)
+        self.assertIn("html", payload["exports"])
+        json.dumps(payload, ensure_ascii=False)
 
 
 if __name__ == "__main__":

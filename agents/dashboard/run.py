@@ -20,6 +20,8 @@ from dotenv import load_dotenv
 from agents.devis_generator.config import charger_config
 from agents.devis_generator.generator import generer_devis
 from agents.devis_generator.render import ecrire_exports
+from agents.facture_generator.generator import generer_facture_depuis_devis
+from agents.facture_generator.render import ecrire_exports as ecrire_exports_facture
 from agents.dashboard.onboarding import PLANS, apply_profile_to_devis_config, load_profile, save_logo_asset, save_profile
 
 RACINE = Path(__file__).resolve().parents[2]
@@ -101,6 +103,48 @@ def _recent_quotes(limit: int = 8) -> list[dict]:
     return quotes
 
 
+def _quote_json_path(quote_id: str) -> Path | None:
+    dossier = RACINE / "outputs" / "devis"
+    if not dossier.exists():
+        return None
+    expected = quote_id.lower()
+    for chemin in dossier.glob("*.json"):
+        try:
+            data = json.loads(chemin.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        if str(data.get("id_devis", "")).lower() == expected or chemin.stem.lower() == expected:
+            return chemin
+    return None
+
+
+def _recent_invoices(limit: int = 8) -> list[dict]:
+    dossier = RACINE / "outputs" / "factures"
+    if not dossier.exists():
+        return []
+    invoices = []
+    for chemin in sorted(dossier.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
+        try:
+            data = json.loads(chemin.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        totaux = data.get("totaux", {}) or {}
+        invoices.append({
+            "id": data.get("id_facture", chemin.stem),
+            "quote_id": data.get("id_devis", ""),
+            "date": data.get("date_creation", ""),
+            "type": data.get("type_facture", ""),
+            "client": data.get("client_nom", ""),
+            "total_ttc": totaux.get("total_ttc", 0),
+            "html": f"/outputs/factures/{chemin.with_suffix('.html').name}",
+            "json": f"/outputs/factures/{chemin.name}",
+            "markdown": f"/outputs/factures/{chemin.with_suffix('.md').name}",
+        })
+        if len(invoices) >= limit:
+            break
+    return invoices
+
+
 def _recent_leads(limit: int = 8) -> list[dict]:
     leads = []
     for chemin in sorted((RACINE / "outputs").glob("leads-*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
@@ -131,6 +175,23 @@ def _generate_quote(text: str, quote_id: str | None = None) -> dict:
         "markdown": f"/outputs/devis/{paths['markdown'].name}",
         "html": f"/outputs/devis/{paths['html'].name}",
         "pdf": f"/outputs/devis/{paths['html'].name}",
+    }
+    return payload
+
+
+def _generate_invoice(quote_id: str, invoice_type: str = "acompte") -> dict:
+    chemin = _quote_json_path(quote_id)
+    if not chemin:
+        raise FileNotFoundError(f"Devis introuvable : {quote_id}")
+    devis = json.loads(chemin.read_text(encoding="utf-8"))
+    doc = generer_facture_depuis_devis(devis, type_facture=invoice_type)
+    paths = ecrire_exports_facture(doc, RACINE / "outputs" / "factures")
+    payload = doc.to_dict()
+    payload["exports"] = {
+        "json": f"/outputs/factures/{paths['json'].name}",
+        "markdown": f"/outputs/factures/{paths['markdown'].name}",
+        "html": f"/outputs/factures/{paths['html'].name}",
+        "pdf": f"/outputs/factures/{paths['html'].name}",
     }
     return payload
 
@@ -174,6 +235,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             _json_response(self, {
                 "examples": _examples(),
                 "recent_quotes": _recent_quotes(),
+                "recent_invoices": _recent_invoices(),
                 "recent_leads": _recent_leads(),
                 "onboarding": load_profile(RACINE),
                 "plans": PLANS,
@@ -200,6 +262,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if self.path == "/api/devis":
             self._handle_devis()
             return
+        if self.path == "/api/factures":
+            self._handle_factures()
+            return
         if self.path == "/api/onboarding":
             self._handle_onboarding(apply_config=False)
             return
@@ -221,6 +286,19 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 _json_response(self, {"error": "Demande vide"}, status=400)
                 return
             _json_response(self, _generate_quote(text, quote_id=quote_id))
+        except Exception as exc:
+            _json_response(self, {"error": str(exc)}, status=500)
+
+    def _handle_factures(self) -> None:
+        length = int(self.headers.get("Content-Length", "0") or "0")
+        try:
+            data = json.loads(self.rfile.read(length).decode("utf-8"))
+            quote_id = str(data.get("quote_id", "")).strip()
+            invoice_type = str(data.get("type", "acompte")).strip() or "acompte"
+            if not quote_id:
+                _json_response(self, {"error": "Devis source manquant"}, status=400)
+                return
+            _json_response(self, _generate_invoice(quote_id, invoice_type=invoice_type))
         except Exception as exc:
             _json_response(self, {"error": str(exc)}, status=500)
 

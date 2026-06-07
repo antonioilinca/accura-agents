@@ -1,4 +1,4 @@
-const state = { examples: [], currentMessage: "", onboarding: null, plans: {} };
+const state = { examples: [], recentQuotes: [], currentMessage: "", onboarding: null, plans: {} };
 const qs = (selector) => document.querySelector(selector);
 const money = (value) => new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -9,10 +9,13 @@ async function bootstrap() {
   const response = await fetch("/api/bootstrap");
   const data = await response.json();
   state.examples = data.examples || [];
+  state.recentQuotes = data.recent_quotes || [];
   state.onboarding = data.onboarding || null;
   state.plans = data.plans || {};
   renderExamples();
-  renderRecentQuotes(data.recent_quotes || []);
+  renderRecentQuotes(state.recentQuotes);
+  renderInvoiceQuoteOptions();
+  renderRecentInvoices(data.recent_invoices || []);
   renderRecentLeads(data.recent_leads || []);
   renderOnboarding();
   if (state.examples[0]) qs("#requestText").value = state.examples[0].text;
@@ -42,6 +45,41 @@ function renderRecentQuotes(quotes) {
       <td>${escapeHtml(q.ville)}</td>
       <td><strong>${money(q.total_ttc)}</strong>${q.questions ? `<br>${q.questions} question(s)` : ""}</td>
       <td><a href="${q.html}" target="_blank">HTML</a> · <a href="${q.markdown}" target="_blank">MD</a> · <a href="${q.json}" target="_blank">JSON</a></td>
+    </tr>
+  `).join("");
+}
+
+function renderInvoiceQuoteOptions() {
+  const select = qs("#invoiceQuoteSelect");
+  if (!select) return;
+  const current = select.value;
+  select.innerHTML = "<option value=''>Choisir un devis</option>";
+  for (const quote of state.recentQuotes) {
+    const option = document.createElement("option");
+    option.value = quote.id;
+    option.textContent = `${quote.id} · ${quote.ville} · ${money(quote.total_ttc)}`;
+    select.appendChild(option);
+  }
+  if (current && state.recentQuotes.some((quote) => quote.id === current)) {
+    select.value = current;
+  }
+}
+
+function renderRecentInvoices(invoices) {
+  const body = qs("#recentInvoices");
+  if (!body) return;
+  if (!invoices.length) {
+    body.innerHTML = "<tr><td colspan='6'>Aucune facture générée pour l'instant.</td></tr>";
+    return;
+  }
+  body.innerHTML = invoices.map((invoice) => `
+    <tr>
+      <td><strong>${escapeHtml(invoice.id)}</strong><br>${escapeHtml(invoice.date)}</td>
+      <td>${escapeHtml(invoice.quote_id)}</td>
+      <td>${escapeHtml(invoice.type)}</td>
+      <td>${escapeHtml(invoice.client)}</td>
+      <td><strong>${money(invoice.total_ttc)}</strong></td>
+      <td><a href="${invoice.html}" target="_blank">HTML</a> · <a href="${invoice.markdown}" target="_blank">MD</a> · <a href="${invoice.json}" target="_blank">JSON</a></td>
     </tr>
   `).join("");
 }
@@ -81,13 +119,57 @@ async function generateQuote() {
     if (!response.ok) throw new Error(data.error || "Erreur génération");
     renderQuote(data);
     const fresh = await (await fetch("/api/bootstrap")).json();
-    renderRecentQuotes(fresh.recent_quotes || []);
+    state.recentQuotes = fresh.recent_quotes || [];
+    renderRecentQuotes(state.recentQuotes);
+    renderInvoiceQuoteOptions();
     setStatus("Devis généré");
   } catch (error) {
     setStatus(error.message);
   } finally {
     qs("#generateBtn").disabled = false;
   }
+}
+
+async function generateInvoice(type) {
+  const quoteId = qs("#invoiceQuoteSelect").value;
+  if (!quoteId) {
+    setInvoiceStatus("Choisis un devis source");
+    return;
+  }
+  setInvoiceStatus(type === "acompte" ? "Génération acompte..." : "Génération solde...");
+  qs("#generateDepositBtn").disabled = true;
+  qs("#generateBalanceBtn").disabled = true;
+  try {
+    const response = await fetch("/api/factures", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quote_id: quoteId, type }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Erreur facture");
+    renderInvoice(data);
+    const fresh = await (await fetch("/api/bootstrap")).json();
+    renderRecentInvoices(fresh.recent_invoices || []);
+    setInvoiceStatus("Facture générée");
+  } catch (error) {
+    setInvoiceStatus(error.message);
+  } finally {
+    qs("#generateDepositBtn").disabled = false;
+    qs("#generateBalanceBtn").disabled = false;
+  }
+}
+
+function renderInvoice(invoice) {
+  const totaux = invoice.totaux || {};
+  qs("#invoiceIdValue").textContent = invoice.id_facture || "-";
+  qs("#invoiceQuoteValue").textContent = invoice.id_devis || "-";
+  qs("#invoiceTypeValue").textContent = invoice.type_facture || "-";
+  qs("#invoiceTotalValue").textContent = money(totaux.total_ttc);
+  qs("#invoiceState").textContent = invoice.statut || "Prêt";
+  qs("#invoiceExportsBox").innerHTML = Object.entries(invoice.exports || {}).map(([label, href]) => {
+    const text = label === "pdf" ? "Imprimer PDF" : label.toUpperCase();
+    return `<a href="${href}" target="_blank">${text}</a>`;
+  }).join("");
 }
 
 function renderQuote(doc) {
@@ -266,6 +348,10 @@ function setStatus(text) {
   qs("#statusText").textContent = text;
 }
 
+function setInvoiceStatus(text) {
+  qs("#invoiceStatus").textContent = text;
+}
+
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -290,6 +376,8 @@ qs("#exampleSelect").addEventListener("change", (event) => {
   if (item) qs("#requestText").value = item.text;
 });
 qs("#generateBtn").addEventListener("click", generateQuote);
+qs("#generateDepositBtn").addEventListener("click", () => generateInvoice("acompte"));
+qs("#generateBalanceBtn").addEventListener("click", () => generateInvoice("solde"));
 qs("#clearBtn").addEventListener("click", () => {
   qs("#requestText").value = "";
   setStatus("Prêt");

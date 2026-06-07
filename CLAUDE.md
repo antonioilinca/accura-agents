@@ -36,6 +36,18 @@ Ne pas construire une fonctionnalité qui ne sert pas directement Fondation ou C
 - Sorties : JSON, Markdown, HTML imprimable PDF dans `outputs/devis/`.
 - Config : `config/devis.example.yaml`, à copier en `config/devis.yaml` pour un vrai artisan.
 
+### Agent Factures Accura
+
+- Dossier : `agents/facture_generator`
+- Commande terminal :
+  `uv run python -m agents.facture_generator.run --quote outputs/devis/ACC-...json --type acompte`
+- Sert la promesse Fondation.
+- Entrée : JSON d'un devis existant.
+- Sorties : JSON, Markdown, HTML imprimable PDF dans `outputs/factures/`.
+- Types supportés : `acompte` et `solde`.
+- Important : les montants viennent du devis source ; aucune IA ne modifie total HT, TVA,
+  total TTC, acompte ou solde.
+
 ### Dashboard artisan local
 
 - Dossier : `agents/dashboard`
@@ -83,6 +95,7 @@ droits d'accès et chemins de fichiers restent contrôlés par la config et le c
 ## Priorités suivantes
 
 1. Rendre les devis plus professionnels et moins "IA visible".
-2. Préparer l'activation OpenAI/Anthropic par simples variables d'environnement.
-3. Calibrer les prix avec 2 à 3 vrais devis d'artisans.
-4. Brancher ensuite WhatsApp/transcription seulement quand Meta Business est validé.
+2. Ajouter relances devis J+3/J+7/J+15 avec boutons copier.
+3. Ajouter mini CRM devis envoyé -> signé -> perdu.
+4. Calibrer les prix avec 2 à 3 vrais devis d'artisans.
+5. Brancher ensuite WhatsApp/transcription seulement quand Meta Business est validé.

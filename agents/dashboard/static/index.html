@@ -19,6 +19,7 @@
       </div>
       <nav class="nav">
         <button class="nav-item active" data-view="devis">Devis</button>
+        <button class="nav-item" data-view="factures">Factures</button>
         <button class="nav-item" data-view="prospects">Prospects</button>
         <button class="nav-item" data-view="relances">Relances</button>
         <button class="nav-item" data-view="avis">Avis Google</button>
@@ -116,6 +117,54 @@
             <table>
               <thead><tr><th>Devis</th><th>Métier</th><th>Chantier</th><th>Ville</th><th>Total TTC</th><th>Exports</th></tr></thead>
               <tbody id="recentQuotes"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="view" id="view-factures">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Factures et acompte</h2>
+              <p>Génère une facture à partir d'un devis existant. Les montants restent ceux du devis.</p>
+            </div>
+            <span class="state" id="invoiceState">Prêt</span>
+          </div>
+
+          <div class="invoice-tool">
+            <label>Devis source
+              <select id="invoiceQuoteSelect" aria-label="Choisir le devis source">
+                <option value="">Choisir un devis</option>
+              </select>
+            </label>
+            <div class="actions invoice-actions">
+              <button class="primary" type="button" id="generateDepositBtn">Facture acompte</button>
+              <button class="secondary" type="button" id="generateBalanceBtn">Facture solde</button>
+              <span id="invoiceStatus">Prêt</span>
+            </div>
+          </div>
+
+          <div class="summary-grid invoice-summary">
+            <div><span>Facture</span><strong id="invoiceIdValue">-</strong></div>
+            <div><span>Devis</span><strong id="invoiceQuoteValue">-</strong></div>
+            <div><span>Type</span><strong id="invoiceTypeValue">-</strong></div>
+            <div><span>Total TTC</span><strong id="invoiceTotalValue">-</strong></div>
+          </div>
+          <div class="exports" id="invoiceExportsBox"></div>
+        </section>
+
+        <section class="panel recent">
+          <div class="panel-head">
+            <div>
+              <h2>Dernières factures générées</h2>
+              <p>Documents locaux prêts à imprimer ou enregistrer en PDF.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Facture</th><th>Devis</th><th>Type</th><th>Client</th><th>Total TTC</th><th>Exports</th></tr></thead>
+              <tbody id="recentInvoices"></tbody>
             </table>
           </div>
         </section>
