@@ -131,6 +131,70 @@ metiers:
         quantite_depuis: "surface_m2"
         mots_cles: ["peinture", "mur", "plafond"]
 
+  carrelage:
+    libelle: "Carrelage / faïence"
+    mots_cles: ["carrelage", "carreleur", "faïence", "faience", "sol carrelé", "terrasse carrelée"]
+    questions_requises: ["ville", "surface", "prestations", "gamme_materiaux", "photos"]
+    conditions:
+      - "Support supposé plan, stable et prêt à recevoir le carrelage."
+      - "Hors ragréage lourd, étanchéité complexe ou dépose non précisée."
+    postes:
+      - code: preparation_carrelage
+        libelle: "Préparation support et protection zone de travail"
+        unite: "m²"
+        prix_unitaire_ht: "18"
+        quantite_depuis: "surface_m2"
+        mots_cles: ["carrelage", "faïence", "faience", "sol"]
+        materiaux: ["primaire", "protections"]
+      - code: pose_carrelage
+        libelle: "Pose carrelage standard"
+        unite: "m²"
+        prix_unitaire_ht: "58"
+        quantite_depuis: "surface_m2"
+        mots_cles: ["carrelage", "sol carrelé", "terrasse carrelée"]
+        materiaux: ["colle", "joints", "croisillons"]
+      - code: pose_faience
+        libelle: "Pose faïence murale"
+        unite: "m²"
+        prix_unitaire_ht: "64"
+        quantite_depuis: "surface_m2"
+        mots_cles: ["faïence", "faience", "mur"]
+        materiaux: ["colle faïence", "joints hydrofuges"]
+
+  menuiserie:
+    libelle: "Menuiserie"
+    mots_cles: ["menuiserie", "menuisier", "fenêtre", "fenetre", "porte", "placard", "parquet", "bois"]
+    questions_requises: ["ville", "prestations", "gamme_materiaux", "photos"]
+    conditions:
+      - "Cotes définitives à confirmer avant commande des éléments sur mesure."
+      - "Hors reprise de maçonnerie ou habillage complexe non visible sur photos."
+    postes:
+      - code: prise_cotes
+        libelle: "Prise de cotes et préparation commande"
+        unite: "forfait"
+        prix_unitaire_ht: "140"
+        mots_cles: ["menuiserie", "fenêtre", "fenetre", "porte", "placard", "parquet"]
+      - code: pose_porte
+        libelle: "Pose porte intérieure standard"
+        unite: "unité"
+        prix_unitaire_ht: "260"
+        quantite_defaut: "1"
+        mots_cles: ["porte"]
+        materiaux: ["bloc-porte", "quincaillerie"]
+      - code: pose_fenetre
+        libelle: "Pose fenêtre standard"
+        unite: "unité"
+        prix_unitaire_ht: "420"
+        quantite_defaut: "1"
+        mots_cles: ["fenêtre", "fenetre"]
+        materiaux: ["fenêtre", "fixations", "joints d'étanchéité"]
+      - code: placard_sur_mesure
+        libelle: "Création placard simple sur mesure"
+        unite: "forfait"
+        prix_unitaire_ht: "780"
+        mots_cles: ["placard", "rangement"]
+        materiaux: ["panneaux mélaminés", "rails", "quincaillerie"]
+
   renovation_generale:
     libelle: "Rénovation générale"
     mots_cles: ["rénovation", "renovation", "refaire", "travaux", "appartement", "maison"]
@@ -149,4 +213,3 @@ metiers:
         prix_unitaire_ht: "95"
         quantite_depuis: "surface_m2"
         mots_cles: ["rénovation", "renovation", "refaire", "travaux"]
-

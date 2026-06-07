@@ -87,7 +87,25 @@ class DevisGeneratorTest(unittest.TestCase):
         self.assertEqual(totaux.total_ttc, Decimal("300.00"))
         self.assertEqual(totaux.acompte_ttc, Decimal("90.00"))
 
+    def test_metiers_menuiserie_et_carrelage_sont_supportes(self) -> None:
+        cfg = charger_config(ROOT / "config" / "devis.example.yaml")
+
+        menuiserie = generer_devis(
+            "Pose d'une porte intérieure premium à Rezé, photos disponibles.",
+            cfg,
+            id_devis="TEST-MENUISERIE",
+        )
+        carrelage = generer_devis(
+            "Pose carrelage standard sur sol 20m2 à Vertou, photos disponibles.",
+            cfg,
+            id_devis="TEST-CARRELAGE",
+        )
+
+        self.assertEqual(menuiserie.demande.metier, "menuiserie")
+        self.assertTrue(any("porte" in ligne.libelle.lower() for ligne in menuiserie.lignes))
+        self.assertEqual(carrelage.demande.metier, "carrelage")
+        self.assertTrue(any("carrelage" in ligne.libelle.lower() for ligne in carrelage.lignes))
+
 
 if __name__ == "__main__":
     unittest.main()
-
