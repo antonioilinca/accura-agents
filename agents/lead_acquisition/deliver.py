@@ -12,6 +12,7 @@ from datetime import date
 from pathlib import Path
 
 from .config import Config
+from .html_report import rendre_html
 from .models import QualifiedLead
 
 log = logging.getLogger(__name__)
@@ -67,6 +68,11 @@ def livrer(
 
     recap = _recap(cfg, payload, nouveaux)
     (cfg.dossier_sortie / f"recap-{aujourd}.md").write_text(recap, encoding="utf-8")
+
+    # Page HTML visuelle (pour Younès / l'artisan). index.html = toujours la plus récente.
+    page = rendre_html(payload)
+    (cfg.dossier_sortie / f"leads-{aujourd}.html").write_text(page, encoding="utf-8")
+    (cfg.dossier_sortie / "index.html").write_text(page, encoding="utf-8")
 
     # --- V2 (non actif) : pousser les leads vers HubSpot (gratuit) + notifier WhatsApp ---
     # _push_hubspot(nouveaux)
