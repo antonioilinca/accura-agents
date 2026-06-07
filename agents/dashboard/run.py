@@ -17,6 +17,8 @@ from urllib.parse import unquote
 
 from dotenv import load_dotenv
 
+from agents.avis_generator.generator import generer_demande_avis
+from agents.avis_generator.render import ecrire_exports as ecrire_exports_avis
 from agents.crm_tracker.pipeline import build_pipeline, update_item
 from agents.devis_generator.config import charger_config
 from agents.devis_generator.generator import generer_devis
@@ -244,6 +246,14 @@ def _update_crm(quote_id: str, status: str, next_action: str = "") -> dict:
     return _crm_pipeline()
 
 
+def _generate_review_request(client: str = "", chantier: str = "") -> dict:
+    request = generer_demande_avis(load_profile(RACINE), client=client, chantier=chantier)
+    paths = ecrire_exports_avis(request, RACINE / "outputs" / "avis")
+    payload = request.to_dict()
+    payload["exports"] = {"json": f"/outputs/avis/{paths['json'].name}"}
+    return payload
+
+
 def _extract_multipart_file(headers, body: bytes, field_name: str) -> tuple[str, bytes]:
     content_type = headers.get("Content-Type", "")
     if not content_type.startswith("multipart/form-data"):
@@ -321,6 +331,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if self.path == "/api/crm":
             self._handle_crm()
             return
+        if self.path == "/api/avis-google":
+            self._handle_avis_google()
+            return
         if self.path == "/api/onboarding":
             self._handle_onboarding(apply_config=False)
             return
@@ -380,6 +393,16 @@ class DashboardHandler(BaseHTTPRequestHandler):
             _json_response(self, _update_crm(quote_id, status, next_action))
         except Exception as exc:
             _json_response(self, {"error": str(exc)}, status=400)
+
+    def _handle_avis_google(self) -> None:
+        length = int(self.headers.get("Content-Length", "0") or "0")
+        try:
+            data = json.loads(self.rfile.read(length).decode("utf-8"))
+            client = str(data.get("client", "")).strip()
+            chantier = str(data.get("chantier", "")).strip()
+            _json_response(self, _generate_review_request(client=client, chantier=chantier))
+        except Exception as exc:
+            _json_response(self, {"error": str(exc)}, status=500)
 
     def _handle_onboarding(self, apply_config: bool) -> None:
         length = int(self.headers.get("Content-Length", "0") or "0")

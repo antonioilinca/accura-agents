@@ -229,8 +229,31 @@
           </div>
         </section>
       </section>
-      <section class="view placeholder" id="view-avis">
-        <section class="panel"><h2>Avis Google</h2><p>Prochaine brique : message de demande d'avis après chantier terminé.</p></section>
+      <section class="view" id="view-avis">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Avis Google</h2>
+              <p>Message après chantier terminé, prêt à copier.</p>
+            </div>
+            <span class="state" id="reviewState">Prêt</span>
+          </div>
+
+          <div class="review-tool">
+            <label>Client <input id="reviewClient" type="text" placeholder="Mme Dupont"></label>
+            <label>Chantier terminé <input id="reviewProject" type="text" placeholder="la rénovation de votre salle de bain"></label>
+            <div class="actions">
+              <button class="primary" type="button" id="generateReviewBtn">Générer message</button>
+              <button class="secondary" type="button" id="copyReviewBtn">Copier</button>
+              <span id="reviewStatus">Prêt</span>
+            </div>
+          </div>
+
+          <div class="message-box review-message">
+            <p id="reviewMessage">Le message de demande d'avis apparaîtra ici.</p>
+          </div>
+          <div class="exports" id="reviewExportsBox"></div>
+        </section>
       </section>
       <section class="view" id="view-crm">
         <section class="panel">
@@ -289,6 +312,7 @@
               <label>Email <input name="email" type="email"></label>
               <label>Adresse / zone affichée <input name="address" type="text"></label>
               <label>Assurance décennale <input name="insurance" type="text"></label>
+              <label>Lien avis Google <input name="google_review_url" type="url"></label>
               <label>Logo entreprise
                 <div class="logo-upload">
                   <input name="logo_file" id="logoFile" type="file" accept="image/png,image/jpeg,image/webp">

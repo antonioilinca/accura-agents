@@ -69,6 +69,17 @@ Ne pas construire une fonctionnalité qui ne sert pas directement Fondation ou C
 - Rôle : suivre montant TTC, client/chantier, statut et prochaine action sans dupliquer les
   prix ni modifier les documents.
 
+### Agent Avis Google Accura
+
+- Dossier : `agents/avis_generator`
+- Commande terminal :
+  `uv run python -m agents.avis_generator.run --client "Mme Dupont" --chantier "la salle de bain"`
+- Sert la promesse Fondation.
+- Entrée : profil artisan + client/chantier optionnels.
+- Sortie : message de demande d'avis Google prêt à copier, sauvegardé dans `outputs/avis/`.
+- Le lien `company.google_review_url` est renseigné depuis l'onboarding. Si absent, le
+  message propose de rechercher l'entreprise sur Google.
+
 ### Dashboard artisan local
 
 - Dossier : `agents/dashboard`
@@ -116,7 +127,6 @@ droits d'accès et chemins de fichiers restent contrôlés par la config et le c
 ## Priorités suivantes
 
 1. Rendre les devis plus professionnels et moins "IA visible".
-2. Ajouter message avis Google après chantier terminé.
-3. Calibrer les prix avec 2 à 3 vrais devis d'artisans.
-4. Préparer une démo Fondation complète avec un artisan fictif crédible.
-5. Brancher ensuite WhatsApp/transcription seulement quand Meta Business est validé.
+2. Calibrer les prix avec 2 à 3 vrais devis d'artisans.
+3. Préparer une démo Fondation complète avec un artisan fictif crédible.
+4. Brancher ensuite WhatsApp/transcription seulement quand Meta Business est validé.

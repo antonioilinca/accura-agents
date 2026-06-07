@@ -3,6 +3,7 @@ const state = {
   recentQuotes: [],
   crmStatuses: {},
   currentMessage: "",
+  reviewMessage: "",
   followupMessages: [],
   onboarding: null,
   plans: {},
@@ -287,6 +288,34 @@ async function generateFollowups() {
   }
 }
 
+async function generateReviewRequest() {
+  qs("#reviewStatus").textContent = "Génération...";
+  qs("#generateReviewBtn").disabled = true;
+  try {
+    const response = await fetch("/api/avis-google", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client: qs("#reviewClient").value,
+        chantier: qs("#reviewProject").value,
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Erreur avis Google");
+    state.reviewMessage = data.message || "";
+    qs("#reviewMessage").textContent = state.reviewMessage || "Message indisponible.";
+    qs("#reviewState").textContent = "À copier";
+    qs("#reviewStatus").textContent = "Message généré";
+    qs("#reviewExportsBox").innerHTML = Object.entries(data.exports || {}).map(([label, href]) => (
+      `<a href="${href}" target="_blank">${label.toUpperCase()}</a>`
+    )).join("");
+  } catch (error) {
+    qs("#reviewStatus").textContent = error.message;
+  } finally {
+    qs("#generateReviewBtn").disabled = false;
+  }
+}
+
 function renderFollowups(plan) {
   state.followupMessages = plan.messages || [];
   qs("#followupState").textContent = state.followupMessages.length ? "À copier" : "Prêt";
@@ -361,6 +390,7 @@ function renderOnboarding() {
   form.email.value = profile.company?.email || "";
   form.address.value = profile.company?.address || "";
   form.insurance.value = profile.company?.insurance || "";
+  form.google_review_url.value = profile.company?.google_review_url || "";
   qs("#logoPath").textContent = profile.assets?.logo_path
     ? `Logo actif : ${profile.assets.logo_path}`
     : "Aucun logo importé";
@@ -395,6 +425,7 @@ function collectOnboardingProfile() {
       email: form.email.value,
       address: form.address.value,
       insurance: form.insurance.value,
+      google_review_url: form.google_review_url.value,
     },
     assets: {
       logo_path: state.onboarding?.assets?.logo_path || "",
@@ -532,6 +563,7 @@ qs("#generateBtn").addEventListener("click", generateQuote);
 qs("#generateDepositBtn").addEventListener("click", () => generateInvoice("acompte"));
 qs("#generateBalanceBtn").addEventListener("click", () => generateInvoice("solde"));
 qs("#generateFollowupsBtn").addEventListener("click", generateFollowups);
+qs("#generateReviewBtn").addEventListener("click", generateReviewRequest);
 qs("#clearBtn").addEventListener("click", () => {
   qs("#requestText").value = "";
   setStatus("Prêt");
@@ -540,6 +572,11 @@ qs("#copyMessageBtn").addEventListener("click", async () => {
   if (!state.currentMessage) return;
   await navigator.clipboard.writeText(state.currentMessage);
   setStatus("Message copié");
+});
+qs("#copyReviewBtn").addEventListener("click", async () => {
+  if (!state.reviewMessage) return;
+  await navigator.clipboard.writeText(state.reviewMessage);
+  qs("#reviewStatus").textContent = "Message copié";
 });
 qs("#crmRows").addEventListener("click", (event) => {
   const button = event.target.closest(".save-crm");

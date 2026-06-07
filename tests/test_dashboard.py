@@ -5,7 +5,15 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from agents.dashboard.run import _crm_pipeline, _examples, _generate_followups, _generate_invoice, _generate_quote, _update_crm
+from agents.dashboard.run import (
+    _crm_pipeline,
+    _examples,
+    _generate_followups,
+    _generate_invoice,
+    _generate_quote,
+    _generate_review_request,
+    _update_crm,
+)
 from agents.dashboard.onboarding import DEFAULT_PROFILE, build_devis_yaml
 from agents.devis_generator.config import charger_config
 from agents.devis_generator.generator import generer_devis
@@ -92,6 +100,14 @@ class DashboardTest(unittest.TestCase):
         self.assertEqual(item["status"], "signe")
         self.assertEqual(item["next_action"], "Préparer facture acompte")
         self.assertIn("signe", _crm_pipeline()["stats"])
+
+    def test_dashboard_genere_message_avis_google(self) -> None:
+        payload = _generate_review_request(client="Mme Dupont", chantier="la salle de bain")
+
+        self.assertIn("message", payload)
+        self.assertIn("Mme Dupont", payload["message"])
+        self.assertIn("la salle de bain", payload["message"])
+        self.assertIn("json", payload["exports"])
 
 
 if __name__ == "__main__":

@@ -14,6 +14,8 @@ Agents disponibles :
   J+3 / J+7 / J+15 prêts à copier).
 - **Mini CRM Accura** : sert la promesse **Fondation** (suivi devis envoyé -> relancé ->
   signé -> perdu).
+- **Agent Avis Google Accura** : sert la promesse **Fondation** (chantier terminé ->
+  message de demande d'avis prêt à copier).
 - **Dashboard artisan local** : interface pour tester les agents en temps réel dans le
   navigateur.
 
@@ -320,6 +322,26 @@ outputs/crm/pipeline.json
 
 Le CRM ne modifie pas les prix ni les documents. Il sert à piloter le suivi commercial dans
 le dashboard.
+
+---
+
+## Agent Avis Google Accura
+
+L'agent avis Google génère un message court après chantier terminé :
+
+- client et chantier optionnels ;
+- lien avis Google repris depuis l'onboarding (`company.google_review_url`) ;
+- fallback propre si le lien n'est pas encore renseigné.
+
+Il n'envoie rien automatiquement. L'artisan copie le message depuis le dashboard.
+
+### Lancer une demande d'avis
+
+```bash
+uv run python -m agents.avis_generator.run \
+  --client "Mme Dupont" \
+  --chantier "la rénovation de votre salle de bain"
+```
 
 ### Exemples de démonstration
 
