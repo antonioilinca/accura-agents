@@ -8,6 +8,8 @@ Agents disponibles :
   qualifiés / semaine).
 - **Agent Devis Accura** : sert la promesse **Fondation** (demande brute ou transcription
   vocale -> devis structuré prêt à envoyer).
+- **Dashboard artisan local** : interface pour tester les agents en temps réel dans le
+  navigateur.
 
 ---
 
@@ -258,3 +260,35 @@ agents/devis_generator/
 ├── render.py       # exports JSON / Markdown / HTML
 └── run.py          # point d'entrée local
 ```
+
+---
+
+## Dashboard artisan local
+
+Le dashboard sert à montrer Accura comme un vrai outil artisan, pas comme un script.
+
+Il permet de :
+
+- coller une demande client ou transcription vocale simulée ;
+- charger des exemples métier ;
+- générer un devis en temps réel ;
+- voir les questions manquantes, lignes de devis, total HT/TVA/TTC et acompte ;
+- copier le message client ;
+- ouvrir les exports JSON, Markdown et HTML imprimable ;
+- voir les derniers devis générés ;
+- afficher une première vue des prospects issus de l'agent acquisition.
+
+Lancer le dashboard :
+
+```bash
+uv run python -m agents.dashboard.run
+```
+
+Puis ouvrir :
+
+```text
+http://127.0.0.1:8787
+```
+
+Le dashboard utilise `config/devis.yaml` si le fichier existe, sinon
+`config/devis.example.yaml`.

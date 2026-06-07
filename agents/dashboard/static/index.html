@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Accura Ouest — Dashboard artisan</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">A</div>
+        <div>
+          <strong>Accura Ouest</strong>
+          <span>Agents IA artisans</span>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="nav-item active" data-view="devis">Devis</button>
+        <button class="nav-item" data-view="prospects">Prospects</button>
+        <button class="nav-item" data-view="relances">Relances</button>
+        <button class="nav-item" data-view="avis">Avis Google</button>
+        <button class="nav-item" data-view="crm">CRM</button>
+        <button class="nav-item" data-view="config">Config</button>
+      </nav>
+      <div class="sidebar-foot"><span class="dot"></span>Mode local</div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1>Agent Devis Accura</h1>
+          <p>Demande brute ou transcription vocale -> devis structuré prêt à envoyer.</p>
+        </div>
+        <div class="account">
+          <strong>Artisan Démo</strong>
+          <span>Offre Fondation</span>
+        </div>
+      </header>
+
+      <section class="view active" id="view-devis">
+        <div class="workspace">
+          <section class="panel input-panel">
+            <div class="panel-head">
+              <div>
+                <h2>Demande client</h2>
+                <p>Colle une demande ou charge un exemple. Plus tard : transcription WhatsApp.</p>
+              </div>
+              <select id="exampleSelect" aria-label="Charger un exemple">
+                <option value="">Charger un exemple</option>
+              </select>
+            </div>
+            <textarea id="requestText" spellcheck="true"></textarea>
+            <div class="actions">
+              <button class="primary" id="generateBtn">Générer devis</button>
+              <button class="secondary" id="clearBtn">Effacer</button>
+              <span id="statusText">Prêt</span>
+            </div>
+          </section>
+
+          <section class="panel result-panel">
+            <div class="panel-head">
+              <div>
+                <h2>Résultat devis</h2>
+                <p id="quoteMeta">Aucun devis généré sur cette session.</p>
+              </div>
+              <span class="state" id="quoteState">Brouillon</span>
+            </div>
+
+            <div class="summary-grid">
+              <div><span>Métier</span><strong id="tradeValue">-</strong></div>
+              <div><span>Ville</span><strong id="cityValue">-</strong></div>
+              <div><span>Surface</span><strong id="surfaceValue">-</strong></div>
+              <div><span>Total TTC</span><strong id="totalValue">-</strong></div>
+            </div>
+
+            <div class="questions" id="questionsBox">
+              <h3>Questions à poser</h3>
+              <ul id="questionsList"></ul>
+            </div>
+
+            <h3>Lignes de devis</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Poste</th><th>Qté</th><th>PU HT</th><th>Total HT</th></tr>
+                </thead>
+                <tbody id="linesBody">
+                  <tr><td colspan="4">Génère un devis pour voir les lignes.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="message-box">
+              <div class="message-head">
+                <h3>Message client</h3>
+                <button class="secondary small" id="copyMessageBtn">Copier</button>
+              </div>
+              <p id="clientMessage">Le message prêt à envoyer apparaîtra ici.</p>
+            </div>
+
+            <div class="exports" id="exportsBox"></div>
+          </section>
+        </div>
+
+        <section class="panel recent">
+          <div class="panel-head">
+            <div>
+              <h2>Derniers devis générés</h2>
+              <p>Historique local pour démo artisan et suivi commercial.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Devis</th><th>Métier</th><th>Chantier</th><th>Ville</th><th>Total TTC</th><th>Exports</th></tr></thead>
+              <tbody id="recentQuotes"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="view" id="view-prospects">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Agent acquisition</h2>
+              <p>Vue artisan de la promesse Croissance : prospects qualifiés à traiter.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Score</th><th>Commune</th><th>Métier</th><th>Action</th><th>Source</th></tr></thead>
+              <tbody id="recentLeads"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="view placeholder" id="view-relances">
+        <section class="panel"><h2>Relances</h2><p>Prochaine brique : relances J+3 / J+7 / J+15 liées aux devis envoyés.</p></section>
+      </section>
+      <section class="view placeholder" id="view-avis">
+        <section class="panel"><h2>Avis Google</h2><p>Prochaine brique : message de demande d'avis après chantier terminé.</p></section>
+      </section>
+      <section class="view placeholder" id="view-crm">
+        <section class="panel"><h2>CRM</h2><p>Prochaine brique : pipeline devis envoyé -> signé -> perdu.</p></section>
+      </section>
+      <section class="view placeholder" id="view-config">
+        <section class="panel"><h2>Configuration artisan</h2><p>Les prix, marges, TVA et mentions légales sont dans <code>config/devis.yaml</code>.</p></section>
+      </section>
+    </main>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
