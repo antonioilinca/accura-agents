@@ -23,7 +23,12 @@ class DevisExamplesTest(unittest.TestCase):
             for index, chemin in enumerate(exemples, start=1):
                 with self.subTest(exemple=chemin.name):
                     texte = chemin.read_text(encoding="utf-8")
-                    doc = generer_devis(texte, cfg, id_devis=f"EXEMPLE-{index:02d}")
+                    doc = generer_devis(
+                        texte,
+                        cfg,
+                        id_devis=f"EXEMPLE-{index:02d}",
+                        utiliser_ia=False,
+                    )
                     paths = ecrire_exports(doc, Path(tmp) / chemin.stem)
 
                     self.assertTrue(doc.demande.metier)
@@ -38,7 +43,7 @@ class DevisExamplesTest(unittest.TestCase):
         cfg = charger_config(ROOT / "config" / "devis.example.yaml")
         texte = (REQUESTS / "salle_de_bain_incomplete.txt").read_text(encoding="utf-8")
 
-        doc = generer_devis(texte, cfg, id_devis="EXEMPLE-INCOMPLET")
+        doc = generer_devis(texte, cfg, id_devis="EXEMPLE-INCOMPLET", utiliser_ia=False)
 
         self.assertGreaterEqual(len(doc.demande.questions), 2)
         self.assertIn("Pour le finaliser", doc.message_client)
@@ -46,4 +51,3 @@ class DevisExamplesTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

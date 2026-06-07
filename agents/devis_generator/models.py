@@ -39,6 +39,18 @@ class PricingConfig:
 
 
 @dataclass
+class LLMQuoteConfig:
+    actif: bool = True
+    provider: str = "auto"  # auto | openai_compat | anthropic | off
+    base_url: str = "https://api.openai.com/v1"
+    api_key_env: str = "OPENAI_API_KEY"
+    modele: str = "gpt-4o-mini"
+    modele_anthropic: str = "claude-sonnet-4-6"
+    max_tokens: int = 1600
+    max_retry_after_seconds: int = 60
+
+
+@dataclass
 class QuoteItemConfig:
     code: str
     libelle: str
@@ -65,6 +77,7 @@ class TradeConfig:
 class QuoteConfig:
     artisan: ArtisanIdentity
     pricing: PricingConfig
+    llm: LLMQuoteConfig
     metiers: dict[str, TradeConfig]
     villes_connues: list[str]
     dossier_sortie: str = "outputs/devis"
@@ -85,6 +98,7 @@ class ProjectRequest:
     urgence: str = "standard"
     infos_manquantes: list[str] = field(default_factory=list)
     questions: list[str] = field(default_factory=list)
+    resume_pro: str = ""
 
 
 @dataclass
@@ -117,6 +131,8 @@ class QuoteDocument:
     conditions: list[str]
     message_client: str
     statut: str = "brouillon_a_valider"
+    mode_generation: str = "local"
+    notes_artisan: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         def convert(value: Any) -> Any:
@@ -129,4 +145,3 @@ class QuoteDocument:
             return value
 
         return convert(asdict(self))
-

@@ -22,6 +22,20 @@ pricing:
   validite_jours: 30
   acompte_pourcentage: "0.30"
 
+# Finition IA optionnelle.
+# Sans clé API, l'agent reste en mode local.
+# Avec OPENAI_API_KEY dans .env, la finition OpenAI s'active automatiquement.
+# Si tu préfères Claude, mets ANTHROPIC_API_KEY et provider: anthropic.
+llm:
+  actif: true
+  provider: auto                  # auto | openai_compat | anthropic | off
+  base_url: https://api.openai.com/v1
+  api_key_env: OPENAI_API_KEY
+  modele: gpt-4o-mini
+  modele_anthropic: claude-sonnet-4-6
+  max_tokens: 1600
+  max_retry_after_seconds: 60
+
 zone:
   villes_connues:
     - Nantes

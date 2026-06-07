@@ -13,6 +13,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote
 
+from dotenv import load_dotenv
+
 from agents.devis_generator.config import charger_config
 from agents.devis_generator.generator import generer_devis
 from agents.devis_generator.render import ecrire_exports
@@ -187,6 +189,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
+    load_dotenv(RACINE / ".env")
     parser = argparse.ArgumentParser(description="Dashboard local Accura Ouest")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8787)

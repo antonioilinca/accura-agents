@@ -205,8 +205,27 @@ Dans `config/devis.yaml`, tu peux modifier sans toucher au code :
 - l'acompte recommandé ;
 - les postes types par métier ;
 - les villes connues autour de Nantes.
+- le fournisseur IA de finition (`llm:`), sans toucher au chiffrage.
 
 `config/devis.yaml` n'est pas versionné, car il peut contenir les vrais tarifs d'un client.
+
+### Activer la finition IA plus tard
+
+Par défaut, l'agent devis fonctionne sans clé API. Le moteur local extrait, chiffre et
+exporte le devis.
+
+Quand un client paie, ajoute simplement une clé dans `.env` :
+
+```bash
+OPENAI_API_KEY=sk-...
+```
+
+Avec `llm.provider: auto` dans `config/devis.yaml`, l'agent utilise alors OpenAI pour
+améliorer la rédaction du résumé, des questions et du message client. Si tu préfères
+Claude, ajoute `ANTHROPIC_API_KEY` et règle `provider: anthropic`.
+
+Garde-fou important : l'IA ne modifie jamais les lignes de prix, la TVA, le total TTC ou
+l'acompte. Ces montants restent verrouillés par la config artisan.
 
 ### Lancer un devis
 

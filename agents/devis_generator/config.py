@@ -11,6 +11,7 @@ import yaml
 from .models import (
     ArtisanIdentity,
     PricingConfig,
+    LLMQuoteConfig,
     QuoteConfig,
     QuoteItemConfig,
     TradeConfig,
@@ -45,6 +46,7 @@ def charger_config(chemin_config: str | Path) -> QuoteConfig:
     data = yaml.safe_load(chemin.read_text(encoding="utf-8")) or {}
     artisan_data = data.get("artisan", {}) or {}
     pricing_data = data.get("pricing", {}) or {}
+    llm_data = data.get("llm", {}) or {}
 
     artisan = ArtisanIdentity(
         nom=str(artisan_data.get("nom", "Votre entreprise")),
@@ -61,6 +63,16 @@ def charger_config(chemin_config: str | Path) -> QuoteConfig:
         main_oeuvre_heure_ht=_dec(pricing_data.get("main_oeuvre_heure_ht", "55"), "55"),
         validite_jours=int(pricing_data.get("validite_jours", 30)),
         acompte_pourcentage=_dec(pricing_data.get("acompte_pourcentage", "0.30"), "0.30"),
+    )
+    llm = LLMQuoteConfig(
+        actif=bool(llm_data.get("actif", True)),
+        provider=str(llm_data.get("provider", "auto")),
+        base_url=str(llm_data.get("base_url", "https://api.openai.com/v1")).rstrip("/"),
+        api_key_env=str(llm_data.get("api_key_env", "OPENAI_API_KEY")),
+        modele=str(llm_data.get("modele", "gpt-4o-mini")),
+        modele_anthropic=str(llm_data.get("modele_anthropic", "claude-sonnet-4-6")),
+        max_tokens=int(llm_data.get("max_tokens", 1600)),
+        max_retry_after_seconds=int(llm_data.get("max_retry_after_seconds", 60)),
     )
 
     metiers: dict[str, TradeConfig] = {}
@@ -82,8 +94,8 @@ def charger_config(chemin_config: str | Path) -> QuoteConfig:
     return QuoteConfig(
         artisan=artisan,
         pricing=pricing,
+        llm=llm,
         metiers=metiers,
         villes_connues=[str(v) for v in zone.get("villes_connues", [])],
         dossier_sortie=str(sortie.get("dossier", "outputs/devis")),
     )
-

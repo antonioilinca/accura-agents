@@ -10,6 +10,8 @@ import argparse
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from .config import charger_config
 from .generator import generer_devis
 from .render import ecrire_exports, rendre_markdown
@@ -25,6 +27,7 @@ def _config_par_defaut() -> Path:
 
 
 def main() -> None:
+    load_dotenv(RACINE / ".env")
     parser = argparse.ArgumentParser(description="Agent Devis Accura — demande brute -> devis")
     parser.add_argument("--config", default=str(_config_par_defaut()), help="chemin du devis.yaml")
     parser.add_argument("--input", default=None, help="demande client brute")
@@ -55,4 +58,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

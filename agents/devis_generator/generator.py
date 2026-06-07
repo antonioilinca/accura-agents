@@ -19,6 +19,7 @@ from .models import (
     TradeConfig,
     money,
 )
+from .ai_refiner import StructuredClient, ameliorer_devis_avec_ia
 
 
 CHANTIER_PATTERNS = [
@@ -49,13 +50,20 @@ QUESTIONS = {
 }
 
 
-def generer_devis(texte: str, cfg: QuoteConfig, id_devis: str | None = None) -> QuoteDocument:
+def generer_devis(
+    texte: str,
+    cfg: QuoteConfig,
+    id_devis: str | None = None,
+    utiliser_ia: bool = True,
+    client_ia: StructuredClient | None = None,
+    modele_ia: str | None = None,
+) -> QuoteDocument:
     demande = extraire_demande(texte, cfg)
     lignes = chiffrer(demande, cfg)
     totaux = calculer_totaux(lignes, cfg)
     conditions = conditions_devis(demande, cfg)
     id_final = id_devis or f"ACC-{date.today().strftime('%Y%m%d')}-001"
-    return QuoteDocument(
+    doc = QuoteDocument(
         id_devis=id_final,
         date_creation=date.today().isoformat(),
         artisan=cfg.artisan,
@@ -65,6 +73,9 @@ def generer_devis(texte: str, cfg: QuoteConfig, id_devis: str | None = None) -> 
         conditions=conditions,
         message_client=message_client(id_final, demande, totaux),
     )
+    if utiliser_ia:
+        doc = ameliorer_devis_avec_ia(doc, cfg, client=client_ia, modele=modele_ia)
+    return doc
 
 
 def extraire_demande(texte: str, cfg: QuoteConfig) -> ProjectRequest:
@@ -164,7 +175,7 @@ def message_client(id_devis: str, demande: ProjectRequest, totaux: QuoteTotals) 
     lieu = demande.ville or "votre chantier"
     intro = (
         f"Bonjour, voici une première estimation pour {demande.type_chantier} à {lieu} "
-        f"(devis {id_devis}) : {totaux.total_ttc} € TTC."
+        f"(devis {id_devis}) : {_eur(totaux.total_ttc)} TTC."
     )
     if demande.questions:
         return intro + " Pour le finaliser proprement, il me manque : " + " ".join(demande.questions)
@@ -173,6 +184,11 @@ def message_client(id_devis: str, demande: ProjectRequest, totaux: QuoteTotals) 
 
 def _norm(texte: str) -> str:
     return texte.lower().replace("m²", "m2").replace("’", "'")
+
+
+def _eur(value: Decimal) -> str:
+    txt = f"{float(value):,.2f}".replace(",", " ").replace(".", ",")
+    return f"{txt} €"
 
 
 def _detecter_metier(normalise: str, cfg: QuoteConfig) -> str:

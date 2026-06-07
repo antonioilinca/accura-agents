@@ -56,7 +56,7 @@ demandes brutes type vocal WhatsApp.
 **Message client généré**
 
 Bonjour, voici une première estimation pour rénovation salle de bain à Nantes
-(devis DEMO-SALLE-DE-BAIN-COMPLETE) : 3909.84 € TTC. Si cela vous convient,
+(devis DEMO-SALLE-DE-BAIN-COMPLETE) : 3 909,84 € TTC. Si cela vous convient,
 je vous propose de valider les derniers détails avant envoi du devis PDF.
 
 ---
@@ -85,7 +85,7 @@ je vous propose de valider les derniers détails avant envoi du devis PDF.
 **Message client généré**
 
 Bonjour, voici une première estimation pour rénovation salle de bain à votre chantier
-(devis DEMO-SALLE-DE-BAIN-INCOMPLETE) : 3368.64 € TTC. Pour le finaliser proprement,
+(devis DEMO-SALLE-DE-BAIN-INCOMPLETE) : 3 368,64 € TTC. Pour le finaliser proprement,
 il me manque : Quelle est la ville exacte du chantier ? Quelle surface est concernée,
 en m² ? Quelle gamme de matériaux souhaitez-vous : standard, milieu de gamme ou premium ?
 
@@ -171,4 +171,3 @@ Le MVP démontre la promesse Fondation :
 
 La prochaine étape rentable n'est pas d'ajouter plus de code. C'est de récupérer 2 à 3
 vrais devis d'un artisan pour remplacer les prix démo par ses prix réels.
-

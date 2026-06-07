@@ -10,6 +10,7 @@ from agents.devis_generator.generator import calculer_totaux, generer_devis
 from agents.devis_generator.models import (
     ArtisanIdentity,
     PricingConfig,
+    LLMQuoteConfig,
     QuoteConfig,
     QuoteLine,
     TradeConfig,
@@ -29,7 +30,7 @@ class DevisGeneratorTest(unittest.TestCase):
             "meuble vasque, carrelage, plomberie. Gamme standard. Photos disponibles."
         )
 
-        doc = generer_devis(texte, cfg, id_devis="TEST-001")
+        doc = generer_devis(texte, cfg, id_devis="TEST-001", utiliser_ia=False)
 
         self.assertEqual(doc.demande.metier, "plomberie")
         self.assertEqual(doc.demande.ville, "Nantes")
@@ -47,7 +48,12 @@ class DevisGeneratorTest(unittest.TestCase):
     def test_demande_incomplete_genere_des_questions(self) -> None:
         cfg = charger_config(ROOT / "config" / "devis.example.yaml")
 
-        doc = generer_devis("Besoin de refaire une salle de bain.", cfg, id_devis="TEST-002")
+        doc = generer_devis(
+            "Besoin de refaire une salle de bain.",
+            cfg,
+            id_devis="TEST-002",
+            utiliser_ia=False,
+        )
 
         questions = " ".join(doc.demande.questions)
         self.assertIn("ville exacte", questions)
@@ -65,6 +71,7 @@ class DevisGeneratorTest(unittest.TestCase):
                 validite_jours=30,
                 acompte_pourcentage=Decimal("0.30"),
             ),
+            llm=LLMQuoteConfig(actif=False, provider="off"),
             metiers={
                 "test": TradeConfig(
                     nom="test",
@@ -94,11 +101,13 @@ class DevisGeneratorTest(unittest.TestCase):
             "Pose d'une porte intérieure premium à Rezé, photos disponibles.",
             cfg,
             id_devis="TEST-MENUISERIE",
+            utiliser_ia=False,
         )
         carrelage = generer_devis(
             "Pose carrelage standard sur sol 20m2 à Vertou, photos disponibles.",
             cfg,
             id_devis="TEST-CARRELAGE",
+            utiliser_ia=False,
         )
 
         self.assertEqual(menuiserie.demande.metier, "menuiserie")
@@ -113,6 +122,7 @@ class DevisGeneratorTest(unittest.TestCase):
             "Salle de bain à Nantes 6m2, douche et vasque, gamme standard, photos disponibles, pas urgent.",
             cfg,
             id_devis="TEST-PAS-URGENT",
+            utiliser_ia=False,
         )
 
         self.assertEqual(doc.demande.urgence, "standard")
