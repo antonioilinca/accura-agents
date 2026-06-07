@@ -1,4 +1,4 @@
-const state = { examples: [], recentQuotes: [], currentMessage: "", onboarding: null, plans: {} };
+const state = { examples: [], recentQuotes: [], currentMessage: "", followupMessages: [], onboarding: null, plans: {} };
 const qs = (selector) => document.querySelector(selector);
 const money = (value) => new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -16,6 +16,8 @@ async function bootstrap() {
   renderRecentQuotes(state.recentQuotes);
   renderInvoiceQuoteOptions();
   renderRecentInvoices(data.recent_invoices || []);
+  renderFollowupQuoteOptions();
+  renderRecentFollowups(data.recent_followups || []);
   renderRecentLeads(data.recent_leads || []);
   renderOnboarding();
   if (state.examples[0]) qs("#requestText").value = state.examples[0].text;
@@ -65,6 +67,22 @@ function renderInvoiceQuoteOptions() {
   }
 }
 
+function renderFollowupQuoteOptions() {
+  const select = qs("#followupQuoteSelect");
+  if (!select) return;
+  const current = select.value;
+  select.innerHTML = "<option value=''>Choisir un devis</option>";
+  for (const quote of state.recentQuotes) {
+    const option = document.createElement("option");
+    option.value = quote.id;
+    option.textContent = `${quote.id} · ${quote.ville} · ${money(quote.total_ttc)}`;
+    select.appendChild(option);
+  }
+  if (current && state.recentQuotes.some((quote) => quote.id === current)) {
+    select.value = current;
+  }
+}
+
 function renderRecentInvoices(invoices) {
   const body = qs("#recentInvoices");
   if (!body) return;
@@ -80,6 +98,25 @@ function renderRecentInvoices(invoices) {
       <td>${escapeHtml(invoice.client)}</td>
       <td><strong>${money(invoice.total_ttc)}</strong></td>
       <td><a href="${invoice.html}" target="_blank">HTML</a> · <a href="${invoice.markdown}" target="_blank">MD</a> · <a href="${invoice.json}" target="_blank">JSON</a></td>
+    </tr>
+  `).join("");
+}
+
+function renderRecentFollowups(plans) {
+  const body = qs("#recentFollowups");
+  if (!body) return;
+  if (!plans.length) {
+    body.innerHTML = "<tr><td colspan='6'>Aucun plan de relance généré pour l'instant.</td></tr>";
+    return;
+  }
+  body.innerHTML = plans.map((plan) => `
+    <tr>
+      <td><strong>${escapeHtml(plan.quote_id)}</strong></td>
+      <td>${escapeHtml(plan.client)}</td>
+      <td>${escapeHtml(plan.chantier)}</td>
+      <td>${escapeHtml(plan.messages_count)}</td>
+      <td>${escapeHtml(plan.next_date)}</td>
+      <td><a href="${plan.json}" target="_blank">JSON</a></td>
     </tr>
   `).join("");
 }
@@ -122,6 +159,7 @@ async function generateQuote() {
     state.recentQuotes = fresh.recent_quotes || [];
     renderRecentQuotes(state.recentQuotes);
     renderInvoiceQuoteOptions();
+    renderFollowupQuoteOptions();
     setStatus("Devis généré");
   } catch (error) {
     setStatus(error.message);
@@ -157,6 +195,50 @@ async function generateInvoice(type) {
     qs("#generateDepositBtn").disabled = false;
     qs("#generateBalanceBtn").disabled = false;
   }
+}
+
+async function generateFollowups() {
+  const quoteId = qs("#followupQuoteSelect").value;
+  if (!quoteId) {
+    setFollowupStatus("Choisis un devis source");
+    return;
+  }
+  setFollowupStatus("Génération...");
+  qs("#generateFollowupsBtn").disabled = true;
+  try {
+    const response = await fetch("/api/relances", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quote_id: quoteId }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Erreur relances");
+    renderFollowups(data);
+    const fresh = await (await fetch("/api/bootstrap")).json();
+    renderRecentFollowups(fresh.recent_followups || []);
+    setFollowupStatus("Relances générées");
+  } catch (error) {
+    setFollowupStatus(error.message);
+  } finally {
+    qs("#generateFollowupsBtn").disabled = false;
+  }
+}
+
+function renderFollowups(plan) {
+  state.followupMessages = plan.messages || [];
+  qs("#followupState").textContent = state.followupMessages.length ? "À copier" : "Prêt";
+  qs("#followupMessages").innerHTML = state.followupMessages.map((item, index) => `
+    <article class="followup-card">
+      <div class="followup-head">
+        <div>
+          <strong>J+${escapeHtml(item.jour)} · ${escapeHtml(item.date_prevue)}</strong>
+          <span>${escapeHtml(item.objet)}</span>
+        </div>
+        <button class="secondary small copy-followup" type="button" data-index="${index}">Copier</button>
+      </div>
+      <p>${escapeHtml(item.message)}</p>
+    </article>
+  `).join("");
 }
 
 function renderInvoice(invoice) {
@@ -352,6 +434,10 @@ function setInvoiceStatus(text) {
   qs("#invoiceStatus").textContent = text;
 }
 
+function setFollowupStatus(text) {
+  qs("#followupStatus").textContent = text;
+}
+
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -378,6 +464,7 @@ qs("#exampleSelect").addEventListener("change", (event) => {
 qs("#generateBtn").addEventListener("click", generateQuote);
 qs("#generateDepositBtn").addEventListener("click", () => generateInvoice("acompte"));
 qs("#generateBalanceBtn").addEventListener("click", () => generateInvoice("solde"));
+qs("#generateFollowupsBtn").addEventListener("click", generateFollowups);
 qs("#clearBtn").addEventListener("click", () => {
   qs("#requestText").value = "";
   setStatus("Prêt");
@@ -386,6 +473,14 @@ qs("#copyMessageBtn").addEventListener("click", async () => {
   if (!state.currentMessage) return;
   await navigator.clipboard.writeText(state.currentMessage);
   setStatus("Message copié");
+});
+qs("#followupMessages").addEventListener("click", async (event) => {
+  const button = event.target.closest(".copy-followup");
+  if (!button) return;
+  const message = state.followupMessages[Number(button.dataset.index)]?.message;
+  if (!message) return;
+  await navigator.clipboard.writeText(message);
+  setFollowupStatus("Message copié");
 });
 qs("#planSelect").addEventListener("change", updatePlanCapabilities);
 qs("#saveOnboardingBtn").addEventListener("click", () => {

@@ -22,6 +22,8 @@ from agents.devis_generator.generator import generer_devis
 from agents.devis_generator.render import ecrire_exports
 from agents.facture_generator.generator import generer_facture_depuis_devis
 from agents.facture_generator.render import ecrire_exports as ecrire_exports_facture
+from agents.relance_generator.generator import generer_relances_depuis_devis
+from agents.relance_generator.render import ecrire_exports as ecrire_exports_relance
 from agents.dashboard.onboarding import PLANS, apply_profile_to_devis_config, load_profile, save_logo_asset, save_profile
 
 RACINE = Path(__file__).resolve().parents[2]
@@ -145,6 +147,30 @@ def _recent_invoices(limit: int = 8) -> list[dict]:
     return invoices
 
 
+def _recent_followups(limit: int = 8) -> list[dict]:
+    dossier = RACINE / "outputs" / "relances"
+    if not dossier.exists():
+        return []
+    plans = []
+    for chemin in sorted(dossier.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
+        try:
+            data = json.loads(chemin.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        messages = data.get("messages", []) or []
+        plans.append({
+            "quote_id": data.get("id_devis", ""),
+            "client": data.get("client", ""),
+            "chantier": data.get("chantier", ""),
+            "messages_count": len(messages),
+            "next_date": messages[0].get("date_prevue", "") if messages else "",
+            "json": f"/outputs/relances/{chemin.name}",
+        })
+        if len(plans) >= limit:
+            break
+    return plans
+
+
 def _recent_leads(limit: int = 8) -> list[dict]:
     leads = []
     for chemin in sorted((RACINE / "outputs").glob("leads-*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
@@ -196,6 +222,18 @@ def _generate_invoice(quote_id: str, invoice_type: str = "acompte") -> dict:
     return payload
 
 
+def _generate_followups(quote_id: str) -> dict:
+    chemin = _quote_json_path(quote_id)
+    if not chemin:
+        raise FileNotFoundError(f"Devis introuvable : {quote_id}")
+    devis = json.loads(chemin.read_text(encoding="utf-8"))
+    plan = generer_relances_depuis_devis(devis)
+    paths = ecrire_exports_relance(plan, RACINE / "outputs" / "relances")
+    payload = plan.to_dict()
+    payload["exports"] = {"json": f"/outputs/relances/{paths['json'].name}"}
+    return payload
+
+
 def _extract_multipart_file(headers, body: bytes, field_name: str) -> tuple[str, bytes]:
     content_type = headers.get("Content-Type", "")
     if not content_type.startswith("multipart/form-data"):
@@ -236,6 +274,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "examples": _examples(),
                 "recent_quotes": _recent_quotes(),
                 "recent_invoices": _recent_invoices(),
+                "recent_followups": _recent_followups(),
                 "recent_leads": _recent_leads(),
                 "onboarding": load_profile(RACINE),
                 "plans": PLANS,
@@ -264,6 +303,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
             return
         if self.path == "/api/factures":
             self._handle_factures()
+            return
+        if self.path == "/api/relances":
+            self._handle_relances()
             return
         if self.path == "/api/onboarding":
             self._handle_onboarding(apply_config=False)
@@ -299,6 +341,18 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 _json_response(self, {"error": "Devis source manquant"}, status=400)
                 return
             _json_response(self, _generate_invoice(quote_id, invoice_type=invoice_type))
+        except Exception as exc:
+            _json_response(self, {"error": str(exc)}, status=500)
+
+    def _handle_relances(self) -> None:
+        length = int(self.headers.get("Content-Length", "0") or "0")
+        try:
+            data = json.loads(self.rfile.read(length).decode("utf-8"))
+            quote_id = str(data.get("quote_id", "")).strip()
+            if not quote_id:
+                _json_response(self, {"error": "Devis source manquant"}, status=400)
+                return
+            _json_response(self, _generate_followups(quote_id))
         except Exception as exc:
             _json_response(self, {"error": str(exc)}, status=500)
 

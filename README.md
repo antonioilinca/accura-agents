@@ -10,6 +10,8 @@ Agents disponibles :
   vocale -> devis structuré prêt à envoyer).
 - **Agent Factures Accura** : sert la promesse **Fondation** (devis validé -> facture
   d'acompte ou de solde imprimable).
+- **Agent Relances Accura** : sert la promesse **Fondation** (devis envoyé -> messages
+  J+3 / J+7 / J+15 prêts à copier).
 - **Dashboard artisan local** : interface pour tester les agents en temps réel dans le
   navigateur.
 
@@ -275,6 +277,27 @@ Pour le solde :
 uv run python -m agents.facture_generator.run \
   --quote outputs/devis/acc-20260607-001.json \
   --type solde
+```
+
+---
+
+## Agent Relances Accura
+
+L'agent relances transforme un devis JSON existant en **3 messages prêts à copier** :
+
+- J+3 : relance courte après envoi ;
+- J+7 : relance de décision ;
+- J+15 : dernière relance avant mise en attente.
+
+Il n'envoie rien automatiquement. L'artisan copie le message depuis le dashboard ou depuis
+la sortie terminal. C'est volontaire : l'automatisation WhatsApp viendra seulement quand le
+cadre Meta Business et le consentement client seront propres.
+
+### Lancer les relances
+
+```bash
+uv run python -m agents.relance_generator.run \
+  --quote outputs/devis/acc-20260607-001.json
 ```
 
 ### Exemples de démonstration

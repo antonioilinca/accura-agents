@@ -144,6 +144,14 @@ tr:last-child td { border-bottom: 0; }
 .invoice-tool { display: grid; grid-template-columns: minmax(260px, 420px) 1fr; gap: 14px; align-items: end; margin-bottom: 16px; }
 .invoice-summary { margin-top: 4px; }
 #invoiceStatus { color: var(--muted); font-size: 13px; margin-left: auto; }
+.followup-list { display: grid; gap: 12px; }
+.followup-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); padding: 14px; }
+.followup-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+.followup-head strong, .followup-head span { display: block; }
+.followup-head span { color: var(--muted); font-size: 12px; margin-top: 3px; }
+.followup-card p { color: var(--ink); }
+.empty-state { color: var(--muted); border: 1px dashed var(--line); border-radius: var(--radius); padding: 16px; background: var(--surface-2); }
+#followupStatus { color: var(--muted); font-size: 13px; margin-left: auto; }
 .placeholder .panel { min-height: 260px; display: grid; align-content: center; }
 code { background: #eef2f6; padding: 2px 5px; border-radius: 4px; }
 .onboarding-form { display: grid; gap: 14px; }

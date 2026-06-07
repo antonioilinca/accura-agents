@@ -187,8 +187,47 @@
         </section>
       </section>
 
-      <section class="view placeholder" id="view-relances">
-        <section class="panel"><h2>Relances</h2><p>Prochaine brique : relances J+3 / J+7 / J+15 liées aux devis envoyés.</p></section>
+      <section class="view" id="view-relances">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Relances devis</h2>
+              <p>Messages J+3, J+7 et J+15 prêts à copier depuis un devis existant.</p>
+            </div>
+            <span class="state" id="followupState">Prêt</span>
+          </div>
+
+          <div class="invoice-tool">
+            <label>Devis source
+              <select id="followupQuoteSelect" aria-label="Choisir le devis à relancer">
+                <option value="">Choisir un devis</option>
+              </select>
+            </label>
+            <div class="actions invoice-actions">
+              <button class="primary" type="button" id="generateFollowupsBtn">Générer relances</button>
+              <span id="followupStatus">Prêt</span>
+            </div>
+          </div>
+
+          <div class="followup-list" id="followupMessages">
+            <div class="empty-state">Aucune relance générée sur cette session.</div>
+          </div>
+        </section>
+
+        <section class="panel recent">
+          <div class="panel-head">
+            <div>
+              <h2>Derniers plans de relance</h2>
+              <p>Historique local des relances générées.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Devis</th><th>Client</th><th>Chantier</th><th>Messages</th><th>Prochaine relance</th><th>Export</th></tr></thead>
+              <tbody id="recentFollowups"></tbody>
+            </table>
+          </div>
+        </section>
       </section>
       <section class="view placeholder" id="view-avis">
         <section class="panel"><h2>Avis Google</h2><p>Prochaine brique : message de demande d'avis après chantier terminé.</p></section>

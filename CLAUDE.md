@@ -48,6 +48,17 @@ Ne pas construire une fonctionnalité qui ne sert pas directement Fondation ou C
 - Important : les montants viennent du devis source ; aucune IA ne modifie total HT, TVA,
   total TTC, acompte ou solde.
 
+### Agent Relances Accura
+
+- Dossier : `agents/relance_generator`
+- Commande terminal :
+  `uv run python -m agents.relance_generator.run --quote outputs/devis/ACC-...json`
+- Sert la promesse Fondation.
+- Entrée : JSON d'un devis existant.
+- Sortie : messages J+3, J+7 et J+15 prêts à copier, sauvegardés dans `outputs/relances/`.
+- Important : pas d'envoi automatique tant que WhatsApp/Meta Business et le consentement
+  client ne sont pas cadrés. Les messages restent copiables depuis le dashboard.
+
 ### Dashboard artisan local
 
 - Dossier : `agents/dashboard`
@@ -95,7 +106,7 @@ droits d'accès et chemins de fichiers restent contrôlés par la config et le c
 ## Priorités suivantes
 
 1. Rendre les devis plus professionnels et moins "IA visible".
-2. Ajouter relances devis J+3/J+7/J+15 avec boutons copier.
-3. Ajouter mini CRM devis envoyé -> signé -> perdu.
+2. Ajouter mini CRM devis envoyé -> relancé -> signé -> perdu.
+3. Ajouter message avis Google après chantier terminé.
 4. Calibrer les prix avec 2 à 3 vrais devis d'artisans.
 5. Brancher ensuite WhatsApp/transcription seulement quand Meta Business est validé.
