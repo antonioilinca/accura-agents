@@ -225,6 +225,22 @@ Les sorties sont écrites dans `outputs/devis/` :
 - `ACC-...html` : version propre à imprimer ou enregistrer en PDF ;
 - `dernier-devis.html` : dernier devis généré.
 
+### Exemples de démonstration
+
+Des demandes réalistes sont disponibles dans `examples/devis/requests/`.
+
+Exemple :
+
+```bash
+uv run python -m agents.devis_generator.run \
+  --id DEMO-SDB-NANTES \
+  --input-file examples/devis/requests/salle_de_bain_complete.txt
+```
+
+Ces exemples couvrent salle de bain, électricité, carrelage, menuiserie et rénovation
+générale. Ils sont aussi utilisés par les tests pour vérifier que l'agent reste vendable
+quand on le modifie.
+
 ### Pourquoi l'agent devis n'appelle pas encore un LLM ?
 
 Pour un devis, le risque n'est pas de manquer de créativité : c'est d'inventer un prix ou
