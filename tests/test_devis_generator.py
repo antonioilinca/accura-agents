@@ -106,6 +106,17 @@ class DevisGeneratorTest(unittest.TestCase):
         self.assertEqual(carrelage.demande.metier, "carrelage")
         self.assertTrue(any("carrelage" in ligne.libelle.lower() for ligne in carrelage.lignes))
 
+    def test_pas_urgent_ne_devient_pas_urgent(self) -> None:
+        cfg = charger_config(ROOT / "config" / "devis.example.yaml")
+
+        doc = generer_devis(
+            "Salle de bain à Nantes 6m2, douche et vasque, gamme standard, photos disponibles, pas urgent.",
+            cfg,
+            id_devis="TEST-PAS-URGENT",
+        )
+
+        self.assertEqual(doc.demande.urgence, "standard")
+
 
 if __name__ == "__main__":
     unittest.main()

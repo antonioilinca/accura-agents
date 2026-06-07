@@ -75,6 +75,10 @@ def extraire_demande(texte: str, cfg: QuoteConfig) -> ProjectRequest:
     adresse = _detecter_adresse(texte)
     surface = _detecter_surface(normalise)
     type_chantier = _detecter_type_chantier(normalise)
+    if metier == "renovation_generale" and (
+        "rénovation" in normalise or "renovation" in normalise
+    ):
+        type_chantier = "rénovation générale"
     urgence = _detecter_urgence(normalise)
     prestations, materiaux = _detecter_prestations(normalise, trade)
     contraintes = _detecter_contraintes(normalise)
@@ -214,6 +218,8 @@ def _detecter_type_chantier(normalise: str) -> str:
 
 
 def _detecter_urgence(normalise: str) -> str:
+    if any(m in normalise for m in ["pas urgent", "pas spécialement urgent", "pas specialement urgent", "non urgent"]):
+        return "standard"
     if any(m in normalise for m in ["urgent", "urgence", "cette semaine", "rapidement"]):
         return "urgent"
     if any(m in normalise for m in ["mois prochain", "dans 1 mois", "dans un mois"]):
@@ -274,4 +280,3 @@ def _item_concerne(mots_cles: list[str], texte: str, prestations: list[str]) -> 
         return True
     prestations_norm = _norm(" ".join(prestations))
     return any(mot in prestations_norm for mot in mots_cles)
-
