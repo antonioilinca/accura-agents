@@ -22,10 +22,16 @@ import logging
 import os
 import time
 from dataclasses import dataclass
+from datetime import datetime
+from email.utils import parsedate_to_datetime
 
 import requests
 
 log = logging.getLogger(__name__)
+
+# Cadence proactive : le free tier Groq sature vite quand les appels partent en
+# rafale. Un espacement minimal évite la plupart des 429 au lieu de les subir.
+_dernier_appel = 0.0
 
 
 @dataclass
@@ -42,10 +48,20 @@ class LLMClient:
         self.base_url = (cfg.llm_base_url or "").rstrip("/")
         self.api_key = os.environ.get(cfg.llm_api_key_env, "") if cfg.llm_api_key_env else ""
         self.max_retry_after_seconds = int(getattr(cfg, "llm_max_retry_after_seconds", 120))
+        self.intervalle_min_s = float(getattr(cfg, "llm_intervalle_min_s", 2.5))
         self._anthropic = None
         if self.provider == "anthropic":
             import anthropic  # import paresseux
             self._anthropic = anthropic.Anthropic()
+
+    def _respecter_cadence(self) -> None:
+        global _dernier_appel
+        if self.intervalle_min_s <= 0:
+            return
+        attente = _dernier_appel + self.intervalle_min_s - time.monotonic()
+        if attente > 0:
+            time.sleep(attente)
+        _dernier_appel = time.monotonic()
 
     # -- API publique -------------------------------------------------------------------
 
@@ -104,10 +120,24 @@ class LLMClient:
             headers["Authorization"] = f"Bearer {self.api_key}"
         url = self.base_url + "/chat/completions"
 
-        for tentative in range(3):
-            r = requests.post(url, headers=headers, json=payload, timeout=90)
+        derniere_erreur: Exception | None = None
+        for tentative in range(4):
+            self._respecter_cadence()
+            try:
+                r = requests.post(url, headers=headers, json=payload, timeout=90)
+            except requests.RequestException as exc:
+                # Panne transitoire (SSL, timeout, connexion) : on retente, le lead
+                # ne doit pas être jeté pour un hoquet réseau.
+                derniere_erreur = exc
+                attente = 2.0 ** tentative
+                log.warning(
+                    "erreur réseau (%s), nouvel essai dans %.0fs",
+                    exc.__class__.__name__, attente,
+                )
+                time.sleep(attente)
+                continue
             if r.status_code == 429:  # rate limit : on respecte Retry-After
-                attente = float(r.headers.get("retry-after", 3)) + 0.5
+                attente = _parse_retry_after(r.headers.get("retry-after")) + 0.5
                 if attente > self.max_retry_after_seconds:
                     raise requests.HTTPError(
                         f"rate limit trop long ({attente:.1f}s > "
@@ -116,16 +146,37 @@ class LLMClient:
                 log.info("rate limit, attente %.1fs", attente)
                 time.sleep(min(attente, 30))
                 continue
+            if r.status_code in (500, 502, 503, 504, 529):
+                derniere_erreur = requests.HTTPError(f"HTTP {r.status_code} côté fournisseur")
+                attente = 2.0 ** tentative
+                log.warning("erreur serveur %s, nouvel essai dans %.0fs", r.status_code, attente)
+                time.sleep(attente)
+                continue
             r.raise_for_status()
             break
         else:
-            raise requests.HTTPError("rate limit persistant après 3 tentatives")
+            raise derniere_erreur or requests.HTTPError("échec persistant après 4 tentatives")
 
         corps = r.json()
         message = corps["choices"][0]["message"].get("content") or ""
         u = corps.get("usage") or {}
         usage = Usage(int(u.get("prompt_tokens", 0)), int(u.get("completion_tokens", 0)))
         return _parse_json(message), usage
+
+
+def _parse_retry_after(valeur: str | None) -> float:
+    """Retry-After peut être un nombre de secondes OU une date HTTP (RFC 7231)."""
+    if not valeur:
+        return 3.0
+    try:
+        return max(0.0, float(valeur))
+    except (TypeError, ValueError):
+        pass
+    try:
+        dt = parsedate_to_datetime(str(valeur))
+        return max(0.0, (dt - datetime.now(dt.tzinfo)).total_seconds())
+    except (TypeError, ValueError):
+        return 3.0
 
 
 def _parse_json(texte: str) -> dict | None:

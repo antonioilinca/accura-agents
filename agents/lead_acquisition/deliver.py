@@ -12,6 +12,8 @@ import logging
 from datetime import date
 from pathlib import Path
 
+from agents.common.fileio import ecrire_json_atomique, lire_json
+
 from .config import Config
 from .html_report import rendre_html
 from .models import QualifiedLead
@@ -20,12 +22,10 @@ log = logging.getLogger(__name__)
 
 
 def _charger_seen(chemin: Path) -> dict:
-    if chemin.exists():
-        try:
-            return json.loads(chemin.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            log.warning("_seen.json illisible, réinitialisé")
-    return {}
+    seen = lire_json(chemin, None)
+    if seen is None and chemin.exists():
+        log.warning("_seen.json illisible, réinitialisé")
+    return seen if isinstance(seen, dict) else {}
 
 
 def _semaine_iso(jour: date | str) -> str:
@@ -105,7 +105,7 @@ def livrer(
 
     for l in nouveaux:
         seen[l.raw.dedup_key] = aujourd
-    seen_path.write_text(json.dumps(seen, ensure_ascii=False, indent=2), encoding="utf-8")
+    ecrire_json_atomique(seen_path, seen)
 
     _mettre_a_jour_suivi(cfg, nouveaux, aujourd, semaine)
     _ecrire_bilan_croissance(cfg, aujourd, semaine, payload, nouveaux)

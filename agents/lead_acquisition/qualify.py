@@ -97,6 +97,17 @@ def qualifier(client: LLMClient, cfg: Config, leads: list[RawLead], cost: CostTr
     maintenant = datetime.now(timezone.utc).isoformat(timespec="seconds")
     resultats: list[QualifiedLead] = []
 
+    # Coût et durée bornés : au-delà du plafond, les dossiers les plus anciens sont
+    # reportés (non marqués vus → ils reviennent au run suivant).
+    if cfg.max_qualif_par_run > 0 and len(leads) > cfg.max_qualif_par_run:
+        leads = sorted(leads, key=lambda l: l.date_signal or "", reverse=True)
+        reportes = len(leads) - cfg.max_qualif_par_run
+        leads = leads[: cfg.max_qualif_par_run]
+        log.warning(
+            "qualif : plafond %d atteint — %d dossier(s) reporté(s) au prochain run",
+            cfg.max_qualif_par_run, reportes,
+        )
+
     for lead in leads:
         try:
             data, usage = client.structured(
@@ -116,12 +127,22 @@ def qualifier(client: LLMClient, cfg: Config, leads: list[RawLead], cost: CostTr
             score = int(data.get("score", 0))
         except (TypeError, ValueError):
             score = 0
+        score = max(0, min(100, score))
+        justification = str(data.get("justification", ""))
+        # Garde-fou déterministe (le prompt seul ne suffit pas) : une opération
+        # au-delà de l'échelle artisan ne peut jamais être livrée comme lead chaud.
+        if cfg.surface_max_artisan > 0 and (lead.surface_plancher or 0) > cfg.surface_max_artisan:
+            score = min(score, 25)
+            justification += (
+                f" [Score plafonné : {lead.surface_plancher} m² dépasse l'échelle "
+                f"artisan ({cfg.surface_max_artisan} m²).]"
+            )
         resultats.append(
             QualifiedLead(
                 raw=lead,
                 metier=cfg.metier.nom,
-                score=max(0, min(100, score)),
-                justification=str(data.get("justification", "")),
+                score=score,
+                justification=justification,
                 signaux=Signaux(
                     adequation_metier=str(sig.get("adequation_metier", "inconnue")),
                     ampleur_travaux=str(sig.get("ampleur_travaux", "inconnue")),
