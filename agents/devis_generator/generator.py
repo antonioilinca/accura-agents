@@ -71,7 +71,7 @@ def generer_devis(
         lignes=lignes,
         totaux=totaux,
         conditions=conditions,
-        message_client=message_client(id_final, demande, totaux),
+        message_client=message_client(demande, totaux),
     )
     if utiliser_ia:
         doc = ameliorer_devis_avec_ia(doc, cfg, client=client_ia, modele=modele_ia)
@@ -171,15 +171,34 @@ def conditions_devis(demande: ProjectRequest, cfg: QuoteConfig) -> list[str]:
     return [c for c in conditions if c]
 
 
-def message_client(id_devis: str, demande: ProjectRequest, totaux: QuoteTotals) -> str:
-    lieu = demande.ville or "votre chantier"
+def message_client(demande: ProjectRequest, totaux: QuoteTotals) -> str:
+    chantier = _chantier_client(demande.type_chantier)
     intro = (
-        f"Bonjour, voici une première estimation pour {demande.type_chantier} à {lieu} "
-        f"(devis {id_devis}) : {_eur(totaux.total_ttc)} TTC."
+        f"Bonjour, voici une première estimation pour {chantier} : "
+        f"{_eur(totaux.total_ttc)} TTC."
     )
     if demande.questions:
-        return intro + " Pour le finaliser proprement, il me manque : " + " ".join(demande.questions)
-    return intro + " Si cela vous convient, je vous propose de valider les derniers détails avant envoi du devis PDF."
+        return intro + " Pour le finaliser, il me manque juste : " + " ".join(demande.questions)
+    return intro + " Si cela vous convient, on valide les derniers détails ensemble et je vous envoie le devis complet."
+
+
+# Formulation naturelle côté client : on parle du chantier, jamais du type technique
+# ni de la référence interne du devis. Fallback neutre pour tout type non listé.
+_CHANTIER_CLIENT = {
+    "rénovation salle de bain": "votre salle de bain",
+    "remplacement chauffe-eau": "votre chauffe-eau",
+    "rénovation électrique": "vos travaux d'électricité",
+    "peinture intérieure": "vos travaux de peinture",
+    "menuiserie": "vos travaux de menuiserie",
+    "carrelage": "votre carrelage",
+    "rénovation générale": "votre projet de rénovation",
+    "travaux de rénovation": "votre projet de rénovation",
+}
+
+
+def _chantier_client(type_chantier: str) -> str:
+    cle = str(type_chantier or "").strip().lower()
+    return _CHANTIER_CLIENT.get(cle, "vos travaux")
 
 
 def _norm(texte: str) -> str:

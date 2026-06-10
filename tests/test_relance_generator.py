@@ -34,13 +34,18 @@ class RelanceGeneratorTest(unittest.TestCase):
         self.assertEqual(plan.messages[1].date_prevue, "2026-06-14")
         self.assertEqual(plan.messages[2].date_prevue, "2026-06-22")
 
-    def test_relances_reprennent_montant_et_contexte_du_devis(self) -> None:
+    def test_relances_naturelles_sans_reference_technique(self) -> None:
         plan = generer_relances_depuis_devis(self._devis_payload())
         text = "\n".join(message.message for message in plan.messages)
 
-        self.assertIn("TEST-RELANCE", text)
-        self.assertIn("3 909,84 € TTC", text)
-        self.assertIn("rénovation salle de bain à Nantes", text)
+        # Le suivi interne garde la référence du devis...
+        self.assertEqual(plan.id_devis, "TEST-RELANCE")
+        # ...mais le client ne voit jamais l'identifiant interne ni le prix au centime.
+        self.assertNotIn("TEST-RELANCE", text)
+        self.assertNotIn("3 909,84", text)
+        # Le contexte du chantier reste présent, formulé comme par un artisan.
+        self.assertIn("salle de bain", text)
+        self.assertIn("devis", text)
 
     def test_relances_exportent_json(self) -> None:
         plan = generer_relances_depuis_devis(self._devis_payload())
