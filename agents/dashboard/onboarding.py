@@ -29,8 +29,10 @@ PLANS = {
         "price": "349 €/mois",
         "agents": ["devis", "relances", "crm", "avis_google", "acquisition"],
     },
+    # Clé historique "pilotage" conservée (profils déjà sauvegardés) ; le nom
+    # commercial sur accuraouest.com est « Intégral ».
     "pilotage": {
-        "label": "Pilotage",
+        "label": "Intégral",
         "price": "599 €/mois",
         "agents": ["devis", "relances", "crm", "avis_google", "acquisition", "reporting"],
     },

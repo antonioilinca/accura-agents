@@ -35,6 +35,14 @@ Ne pas construire une fonctionnalité qui ne sert pas directement Fondation ou C
 - Entrée : texte brut ou transcription vocale simulée.
 - Sorties : JSON, Markdown, HTML imprimable PDF dans `outputs/devis/`.
 - Config : `config/devis.example.yaml`, à copier en `config/devis.yaml` pour un vrai artisan.
+- Ids séquentiels par jour (`ACC-AAAAMMJJ-NNN`, compteur `outputs/devis/_sequence.json`) :
+  plus de collision possible entre deux devis du même jour. Sans id explicite, un devis
+  existant ne s'écrase pas ; un id fourni à la main = ré-édition volontaire.
+- Garde-fous d'entrée (questions de confirmation, jamais de chiffrage aveugle) :
+  demande < 12 caractères refusée ; surface hors 1-500 m² → question, pas de quantité ;
+  métier non reconnu → question ; montant/quantité dicté en toutes lettres
+  (« deux mille euros ») → question. C'est ce dernier garde-fou qui tient la promesse
+  vocal « un nombre dicté en lettres fait poser une question plutôt qu'une invention ».
 
 ### Agent Factures Accura
 
@@ -47,6 +55,14 @@ Ne pas construire une fonctionnalité qui ne sert pas directement Fondation ou C
 - Types supportés : `acompte` et `solde`.
 - Important : les montants viennent du devis source ; aucune IA ne modifie total HT, TVA,
   total TTC, acompte ou solde.
+- Numérotation LÉGALE : séquentielle continue `FAC-AAAA-NNNN` via le compteur persistant
+  `outputs/factures/_sequence.json` (verrouillé). Une facture émise ne s'écrase jamais
+  (`ecrire_exports` refuse, pas d'avoir automatique en V1). La démo n'utilise PAS le
+  compteur (ids dérivés du devis) pour ne jamais créer de trous dans la numérotation.
+- Mentions obligatoires intégrées : date d'échéance (30 j par défaut), pénalités de
+  retard + indemnité 40 € (L441-10), et « TVA non applicable, art. 293 B » si
+  l'artisan est en franchise (`artisan.franchise_tva: true` dans la config devis,
+  case dédiée dans l'onglet Config). Incohérence franchise + TVA > 0 → erreur.
 
 ### Agent Relances Accura
 
@@ -113,6 +129,20 @@ Ne pas construire une fonctionnalité qui ne sert pas directement Fondation ou C
 - Rôle : transformer l'abonnement en agents activés + configuration prix/métier/zone.
 - Important : aucun vrai client ne doit être onboardé sans remplir ces informations.
 
+## Briques partagées
+
+`agents/common/fileio.py` : écritures JSON atomiques (`os.replace`) + verrou de fichier
+inter-process. OBLIGATOIRE pour tout registre local (CRM `pipeline.json`, `_seen.json`,
+profil artisan, compteurs `_sequence.json`) : un crash ou deux écritures simultanées ne
+doivent jamais corrompre la mémoire commerciale d'un client.
+
+Côté agent leads (`agents/lead_acquisition/llm.py`) : la couche réseau retente les pannes
+transitoires (SSL/timeout/5xx), lit `Retry-After` en secondes ET en date HTTP, et espace
+les appels (`llm.intervalle_min_s`) pour ne pas saturer le free tier. Qualification
+plafonnée par run (`qualification.max_qualif_par_run`), surplus reporté ; échelle artisan
+garantie en code (`qualification.surface_max_artisan`). Fenêtre source `jours_recents`
+à garder >= 2x l'intervalle entre runs.
+
 ## Tests
 
 Commande de validation :
@@ -121,7 +151,7 @@ Commande de validation :
 uv run python -m unittest discover
 ```
 
-État au 7 juin 2026 : 42 tests passent.
+État au 11 juin 2026 : 67 tests passent.
 
 ## Règle technique importante
 

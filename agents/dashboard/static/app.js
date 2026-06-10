@@ -386,6 +386,7 @@ function renderOnboarding() {
   form.main_trade.value = profile.business?.main_trade || "plomberie";
   form.company_name.value = profile.company?.name || "";
   form.siret.value = profile.company?.siret || "";
+  form.franchise_tva.checked = Boolean(profile.company?.franchise_tva);
   form.phone.value = profile.company?.phone || "";
   form.email.value = profile.company?.email || "";
   form.address.value = profile.company?.address || "";
@@ -421,6 +422,7 @@ function collectOnboardingProfile() {
     company: {
       name: form.company_name.value,
       siret: form.siret.value,
+      franchise_tva: form.franchise_tva.checked,
       phone: form.phone.value,
       email: form.email.value,
       address: form.address.value,
