@@ -31,12 +31,17 @@ small{color:#64748b}.right{text-align:right}.total-box{margin-left:auto;margin-t
 """
 
 
-def ecrire_exports(doc: QuoteDocument, dossier: Path) -> dict[str, Path]:
+def ecrire_exports(doc: QuoteDocument, dossier: Path, ecraser: bool = False) -> dict[str, Path]:
     dossier.mkdir(parents=True, exist_ok=True)
     base = dossier / doc.id_devis.lower()
     json_path = base.with_suffix(".json")
     md_path = base.with_suffix(".md")
     html_path = base.with_suffix(".html")
+    if json_path.exists() and not ecraser:
+        raise FileExistsError(
+            f"Le devis {doc.id_devis} existe déjà ({json_path.name}). "
+            "Fournir un identifiant explicite pour le ré-éditer volontairement."
+        )
     json_path.write_text(json.dumps(doc.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
     md_path.write_text(rendre_markdown(doc), encoding="utf-8")
     html_path.write_text(rendre_html(doc), encoding="utf-8")
@@ -72,10 +77,15 @@ def rendre_markdown(doc: QuoteDocument) -> str:
     lignes += ["## Lignes de devis", "", "| Poste | Qté | Unité | PU HT | Total HT |", "|---|---:|---|---:|---:|"]
     for l in doc.lignes:
         lignes.append(f"| {l.libelle} | {_qty(l.quantite)} | {l.unite} | {_eur(l.prix_unitaire_ht)} | {_eur(l.total_ht)} |")
+    ligne_tva_md = (
+        "**TVA non applicable, art. 293 B du CGI**"
+        if doc.artisan.franchise_tva
+        else f"**TVA : {_eur(doc.totaux.tva)}**"
+    )
     lignes += [
         "",
         f"**Total HT : {_eur(doc.totaux.total_ht)}**",
-        f"**TVA : {_eur(doc.totaux.tva)}**",
+        ligne_tva_md,
         f"**Total TTC : {_eur(doc.totaux.total_ttc)}**",
         f"**Acompte recommandé : {_eur(doc.totaux.acompte_ttc)} TTC**",
         "",
@@ -129,7 +139,7 @@ Urgence : {html.escape(d.urgence)}</p></div>
 <table><thead><tr><th>Poste</th><th class="right">Qté</th><th>Unité</th><th class="right">PU HT</th><th class="right">Total HT</th></tr></thead><tbody>{rows}</tbody></table>
 <div class="total-box">
 <div class="total-line"><span>Total HT</span><strong>{_eur(doc.totaux.total_ht)}</strong></div>
-<div class="total-line"><span>TVA</span><strong>{_eur(doc.totaux.tva)}</strong></div>
+{_ligne_tva_html(doc)}
 <div class="total-line grand-total"><span>Total TTC</span><strong>{_eur(doc.totaux.total_ttc)}</strong></div>
 <div class="total-line"><span>Acompte recommandé</span><strong>{_eur(doc.totaux.acompte_ttc)} TTC</strong></div>
 </div>
@@ -139,6 +149,15 @@ Urgence : {html.escape(d.urgence)}</p></div>
 <p class="footer">Document généré à partir des informations transmises. Les montants restent à valider après visite technique, choix définitif des matériaux et vérification des supports.</p>
 <button class="no-print" onclick="window.print()">Imprimer / enregistrer en PDF</button>
 </main></body></html>"""
+
+
+def _ligne_tva_html(doc: QuoteDocument) -> str:
+    if doc.artisan.franchise_tva:
+        return (
+            "<div class='total-line'><span>TVA</span>"
+            "<strong>Non applicable, art. 293 B du CGI</strong></div>"
+        )
+    return f"<div class='total-line'><span>TVA</span><strong>{_eur(doc.totaux.tva)}</strong></div>"
 
 
 def _eur(value) -> str:

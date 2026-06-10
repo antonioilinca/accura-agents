@@ -7,6 +7,8 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from agents.common.fileio import ecrire_json_atomique, lire_json, verrou_fichier
+
 
 STATUSES = {
     "devis_envoye": "Devis envoyé",
@@ -14,6 +16,10 @@ STATUSES = {
     "signe": "Signé",
     "perdu": "Perdu",
 }
+
+# Les statuts terminaux protègent l'historique commercial : un devis signé ou
+# perdu ne se requalifie pas d'un clic (erreur de manipulation la plus fréquente).
+STATUTS_TERMINAUX = {"signe", "perdu"}
 
 DEFAULT_NEXT_ACTIONS = {
     "devis_envoye": "Relancer à J+3 si pas de retour.",
@@ -28,20 +34,11 @@ def crm_path(root: Path) -> Path:
 
 
 def load_state(root: Path) -> dict[str, dict[str, Any]]:
-    path = crm_path(root)
-    if not path.exists():
-        return {}
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return {}
-    return data if isinstance(data, dict) else {}
+    return lire_json(crm_path(root), {})
 
 
 def save_state(root: Path, state: dict[str, dict[str, Any]]) -> None:
-    path = crm_path(root)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    ecrire_json_atomique(crm_path(root), state)
 
 
 def build_pipeline(root: Path, limit: int = 50) -> dict[str, Any]:
@@ -74,15 +71,41 @@ def update_item(root: Path, quote_id: str, status: str, next_action: str = "") -
         raise ValueError("Devis manquant")
     if status not in STATUSES:
         raise ValueError("Statut CRM invalide")
+    if not _quote_exists(root, quote_id):
+        raise ValueError(f"Devis inconnu : {quote_id} (aucun fichier correspondant dans outputs/devis)")
 
-    state = load_state(root)
-    state[quote_id] = {
-        "status": status,
-        "next_action": str(next_action or DEFAULT_NEXT_ACTIONS[status]).strip(),
-        "updated_at": date.today().isoformat(),
-    }
-    save_state(root, state)
+    # Le cycle lecture → modification → écriture est verrouillé : deux mises à jour
+    # simultanées (dashboard multi-onglets, CLI en parallèle) ne se perdent plus.
+    with verrou_fichier(crm_path(root)):
+        state = load_state(root)
+        statut_actuel = str((state.get(quote_id) or {}).get("status") or "")
+        if statut_actuel in STATUTS_TERMINAUX and status != statut_actuel:
+            raise ValueError(
+                f"Le devis {quote_id} est déjà marqué « {STATUSES[statut_actuel]} » : "
+                "statut final, modifiable uniquement à la main dans outputs/crm/pipeline.json."
+            )
+        state[quote_id] = {
+            "status": status,
+            "next_action": str(next_action or DEFAULT_NEXT_ACTIONS[status]).strip(),
+            "updated_at": date.today().isoformat(),
+        }
+        save_state(root, state)
     return state[quote_id]
+
+
+def _quote_exists(root: Path, quote_id: str) -> bool:
+    direct = root / "outputs" / "devis" / f"{_file_stem(quote_id)}.json"
+    if direct.exists():
+        return True
+    expected = quote_id.lower()
+    for path in _quote_files(root):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        if str(data.get("id_devis", "")).lower() == expected:
+            return True
+    return False
 
 
 def quote_to_crm_item(quote: dict[str, Any], state: dict[str, Any]) -> dict[str, Any] | None:

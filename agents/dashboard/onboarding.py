@@ -7,12 +7,15 @@ les métiers, les prix et les règles commerciales de l'artisan.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+from agents.common.fileio import ecrire_json_atomique
 
 
 PLANS = {
@@ -44,6 +47,7 @@ DEFAULT_PROFILE = {
         "phone": "07 61 77 20 65",
         "email": "contact@accuraouest.com",
         "google_review_url": "",
+        "franchise_tva": False,
     },
     "assets": {
         "logo_path": "",
@@ -147,10 +151,41 @@ def load_profile(root: Path) -> dict[str, Any]:
 def save_profile(root: Path, profile: dict[str, Any]) -> dict[str, Any]:
     cleaned = normalize_profile(merge_profile(DEFAULT_PROFILE, profile))
     cleaned = with_plan_capabilities(cleaned)
-    path = profile_path(root)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(cleaned, ensure_ascii=False, indent=2), encoding="utf-8")
+    ecrire_json_atomique(profile_path(root), cleaned)
     return cleaned
+
+
+def valider_profil_production(profile: dict[str, Any]) -> list[str]:
+    """Contrôles bloquants avant d'activer la config devis d'un VRAI artisan.
+
+    Le brouillon de profil reste libre ; mais aucun document client ne doit pouvoir
+    sortir avec un SIRET placeholder, une TVA aberrante ou un prix négatif.
+    """
+    erreurs: list[str] = []
+    company = profile.get("company", {}) or {}
+    settings = profile.get("quote_settings", {}) or {}
+
+    siret = re.sub(r"\s", "", str(company.get("siret", "")))
+    if not re.fullmatch(r"\d{14}", siret):
+        erreurs.append("SIRET invalide : 14 chiffres attendus (obligatoire sur devis et factures).")
+    url = str(company.get("google_review_url") or "").strip()
+    if url and not url.startswith(("http://", "https://")):
+        erreurs.append("Lien d'avis Google invalide : il doit commencer par https://")
+
+    vat = float(settings.get("vat_rate", 0) or 0)
+    if bool(company.get("franchise_tva")) and vat > 0:
+        erreurs.append("Franchise en base (art. 293 B) activée : le taux de TVA doit être 0.")
+    if not 0 <= vat <= 0.30:
+        erreurs.append("Taux de TVA hors plage raisonnable (0 à 30 %).")
+    if not 0 <= float(settings.get("deposit_rate", 0) or 0) <= 1:
+        erreurs.append("Taux d'acompte hors plage (0 à 100 %).")
+    if float(settings.get("hourly_rate_ht", 0) or 0) <= 0:
+        erreurs.append("Taux horaire HT manquant ou nul.")
+    for item in profile.get("quote_items", []) or []:
+        if float(item.get("unit_price_ht", 0) or 0) < 0:
+            libelle = item.get("label") or item.get("code") or "?"
+            erreurs.append(f"Prix négatif sur le poste « {libelle} ».")
+    return erreurs
 
 
 def save_logo_asset(root: Path, filename: str, content: bytes) -> dict[str, Any]:
@@ -181,6 +216,11 @@ def save_logo_asset(root: Path, filename: str, content: bytes) -> dict[str, Any]
 
 def apply_profile_to_devis_config(root: Path, profile: dict[str, Any]) -> dict[str, str]:
     profile = save_profile(root, profile)
+    erreurs = valider_profil_production(profile)
+    if erreurs:
+        raise ValueError(
+            "Profil incomplet pour activer la configuration devis :\n- " + "\n- ".join(erreurs)
+        )
     target = devis_config_path(root)
     target.parent.mkdir(parents=True, exist_ok=True)
 
@@ -204,6 +244,7 @@ def build_devis_yaml(profile: dict[str, Any]) -> dict[str, Any]:
     main_trade = business["main_trade"]
     plan = PLANS.get(profile["plan"], PLANS["fondation"])
 
+    franchise = bool(company.get("franchise_tva", False))
     return {
         "artisan": {
             "nom": company["name"],
@@ -213,6 +254,7 @@ def build_devis_yaml(profile: dict[str, Any]) -> dict[str, Any]:
             "siret": company["siret"],
             "assurance_decennale": company["insurance"],
             "logo_path": assets.get("logo_path", ""),
+            "franchise_tva": franchise,
             "mentions": [
                 settings["payment_terms"],
                 "Délais et prix à confirmer après visite technique ou photos exploitables.",
@@ -220,7 +262,7 @@ def build_devis_yaml(profile: dict[str, Any]) -> dict[str, Any]:
             ],
         },
         "pricing": {
-            "taux_tva": str(settings["vat_rate"]),
+            "taux_tva": "0" if franchise else str(settings["vat_rate"]),
             "taux_marge": str(settings["margin_rate"]),
             "main_oeuvre_heure_ht": str(settings["hourly_rate_ht"]),
             "validite_jours": int(settings["validity_days"]),
@@ -271,9 +313,31 @@ def normalize_profile(profile: dict[str, Any]) -> dict[str, Any]:
     profile["business"]["excluded_jobs"] = as_list(profile["business"].get("excluded_jobs"))
     profile["assets"]["logo_path"] = normalize_logo_path(profile["assets"].get("logo_path"))
     profile["assets"]["logo_original_name"] = str(profile["assets"].get("logo_original_name") or "")
+    profile["company"]["franchise_tva"] = _vrai_faux(profile["company"].get("franchise_tva"))
+    settings = profile["quote_settings"]
+    settings["vat_rate"] = _taux(settings.get("vat_rate"), 0.10)
+    settings["margin_rate"] = _taux(settings.get("margin_rate"), 0.20)
+    settings["deposit_rate"] = _taux(settings.get("deposit_rate"), 0.30)
     for item in profile.get("quote_items", []):
         item["keywords"] = as_list(item.get("keywords"))
     return profile
+
+
+def _taux(value: Any, defaut: float) -> float:
+    """Accepte 0.10, "0,10", 10 ou "10 %" : toute valeur > 1 est lue comme un pourcentage."""
+    try:
+        v = float(str(value).replace("%", "").replace(",", ".").strip())
+    except (TypeError, ValueError):
+        return defaut
+    if v > 1:
+        v = v / 100
+    return v if v >= 0 else defaut
+
+
+def _vrai_faux(value: Any) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "oui", "on", "yes"}
+    return bool(value)
 
 
 def with_plan_capabilities(profile: dict[str, Any]) -> dict[str, Any]:

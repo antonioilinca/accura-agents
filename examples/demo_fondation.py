@@ -214,7 +214,8 @@ def main() -> None:
         section(f"Devis {cas['id']}")
         texte = (RACINE / "examples" / "devis" / "requests" / cas["demande"]).read_text(encoding="utf-8").strip()
         doc = generer_devis(texte, cfg, id_devis=cas["id"], utiliser_ia=False)
-        ecrire_exports(doc, dossier_devis)
+        # La démo se rejoue à volonté : ré-écrire ses propres documents est voulu.
+        ecrire_exports(doc, dossier_devis, ecraser=True)
         devis = json.loads((dossier_devis / f"{cas['id']}.json").read_text(encoding="utf-8"))
         totaux = devis.get("totaux", {})
         demande = devis.get("demande", {})
@@ -224,8 +225,10 @@ def main() -> None:
         docs = ["devis"]
 
         if cas["facture"]:
+            # Sans `dossier` : id de démo dérivé du devis, le compteur légal de
+            # facturation n'est jamais consommé par une démonstration.
             facture = generer_facture_depuis_devis(devis, type_facture="acompte")
-            ecrire_exports_facture(facture, RACINE / "outputs" / "factures")
+            ecrire_exports_facture(facture, RACINE / "outputs" / "factures", ecraser=True)
             fdict = facture.to_dict()
             print(f"  Facture acompte : {euros(fdict.get('totaux', {}).get('total_ttc'))}")
             docs.append("facture acompte")

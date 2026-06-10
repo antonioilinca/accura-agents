@@ -7,8 +7,8 @@ from pathlib import Path
 
 from agents.devis_generator.config import charger_config
 from agents.devis_generator.generator import generer_devis
-from agents.facture_generator.generator import generer_facture_depuis_devis
-from agents.facture_generator.render import ecrire_exports, rendre_html
+from agents.facture_generator.generator import generer_facture_depuis_devis, prochain_numero_facture
+from agents.facture_generator.render import ecrire_exports, rendre_html, rendre_markdown
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -57,6 +57,64 @@ class FactureGeneratorTest(unittest.TestCase):
             self.assertTrue(paths["json"].exists())
             self.assertTrue(paths["markdown"].exists())
             self.assertTrue(paths["html"].exists())
+
+    def test_numerotation_sequentielle_sans_collision(self) -> None:
+        devis = self._devis_payload()
+        with tempfile.TemporaryDirectory() as tmp:
+            dossier = Path(tmp)
+            acompte = generer_facture_depuis_devis(devis, type_facture="acompte", dossier=dossier)
+            solde = generer_facture_depuis_devis(devis, type_facture="solde", dossier=dossier)
+
+            self.assertRegex(acompte.id_facture, r"^FAC-\d{4}-0001$")
+            self.assertRegex(solde.id_facture, r"^FAC-\d{4}-0002$")
+            self.assertNotEqual(acompte.id_facture, solde.id_facture)
+
+    def test_compteur_facture_survit_aux_relances(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dossier = Path(tmp)
+            numeros = [prochain_numero_facture(dossier) for _ in range(3)]
+            self.assertEqual([n.rsplit("-", 1)[1] for n in numeros], ["0001", "0002", "0003"])
+
+    def test_facture_porte_echeance_et_mentions_legales(self) -> None:
+        facture = generer_facture_depuis_devis(self._devis_payload(), type_facture="acompte")
+
+        self.assertTrue(facture.date_echeance)
+        self.assertGreater(facture.date_echeance, facture.date_creation)
+        markdown = rendre_markdown(facture)
+        html = rendre_html(facture)
+        for rendu in (markdown, html):
+            self.assertIn("Date d'échéance", rendu)
+            self.assertIn("pénalités de retard", rendu)
+            self.assertIn("40 €", rendu)
+
+    def test_facture_franchise_tva_montre_la_mention_293b(self) -> None:
+        devis = self._devis_payload()
+        devis["artisan"]["franchise_tva"] = True
+        devis["totaux"]["tva"] = 0.0
+        # En franchise, TTC == HT (le devis source doit déjà être généré ainsi).
+        devis["totaux"]["total_ttc"] = devis["totaux"]["total_ht"]
+        devis["totaux"]["acompte_ttc"] = round(devis["totaux"]["total_ttc"] * 0.3, 2)
+
+        facture = generer_facture_depuis_devis(devis, type_facture="acompte")
+
+        self.assertTrue(facture.franchise_tva)
+        self.assertIn("293 B", rendre_markdown(facture))
+        self.assertIn("293 B", rendre_html(facture))
+
+    def test_facture_refuse_devis_avec_tva_si_franchise(self) -> None:
+        devis = self._devis_payload()
+        devis["artisan"]["franchise_tva"] = True  # TVA du devis laissée > 0 : incohérent.
+
+        with self.assertRaises(ValueError) as ctx:
+            generer_facture_depuis_devis(devis, type_facture="acompte")
+        self.assertIn("293 B", str(ctx.exception))
+
+    def test_une_facture_emise_ne_s_ecrase_pas(self) -> None:
+        facture = generer_facture_depuis_devis(self._devis_payload(), type_facture="acompte")
+        with tempfile.TemporaryDirectory() as tmp:
+            ecrire_exports(facture, Path(tmp))
+            with self.assertRaises(FileExistsError):
+                ecrire_exports(facture, Path(tmp))
 
 
 if __name__ == "__main__":

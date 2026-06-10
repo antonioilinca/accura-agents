@@ -25,8 +25,11 @@ def main() -> None:
 
     try:
         devis = charger_devis_json(args.quote)
-        doc = generer_facture_depuis_devis(devis, type_facture=args.type, id_facture=args.id)
-        paths = ecrire_exports(doc, RACINE / args.output_dir)
+        dossier = RACINE / args.output_dir
+        doc = generer_facture_depuis_devis(
+            devis, type_facture=args.type, id_facture=args.id, dossier=dossier
+        )
+        paths = ecrire_exports(doc, dossier)
     except Exception as exc:
         print(f"Erreur agent factures : {exc}", file=sys.stderr)
         sys.exit(2)

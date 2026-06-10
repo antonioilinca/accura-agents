@@ -141,6 +141,101 @@ class DevisGeneratorTest(unittest.TestCase):
         self.assertNotIn("<img class='artisan-logo'", html)
         self.assertNotIn("<img", html)
 
+    def test_ids_sequentiels_sans_collision_le_meme_jour(self) -> None:
+        cfg = charger_config(ROOT / "config" / "devis.example.yaml")
+        texte = "Salle de bain à Nantes 6m2, douche, vasque, gamme standard, photos disponibles."
+        with tempfile.TemporaryDirectory() as tmp:
+            dossier = Path(tmp)
+            doc1 = generer_devis(texte, cfg, utiliser_ia=False, dossier=dossier)
+            doc2 = generer_devis(texte, cfg, utiliser_ia=False, dossier=dossier)
+
+            self.assertNotEqual(doc1.id_devis, doc2.id_devis)
+            self.assertRegex(doc1.id_devis, r"^ACC-\d{8}-001$")
+            self.assertRegex(doc2.id_devis, r"^ACC-\d{8}-002$")
+
+    def test_un_devis_existant_ne_s_ecrase_pas_sans_id_explicite(self) -> None:
+        cfg = charger_config(ROOT / "config" / "devis.example.yaml")
+        doc = generer_devis(
+            "Salle de bain à Nantes 6m2, douche, gamme standard, photos disponibles.",
+            cfg,
+            id_devis="TEST-OVERWRITE",
+            utiliser_ia=False,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            ecrire_exports(doc, Path(tmp))
+            with self.assertRaises(FileExistsError):
+                ecrire_exports(doc, Path(tmp))
+            # La ré-édition volontaire reste possible.
+            ecrire_exports(doc, Path(tmp), ecraser=True)
+
+    def test_demande_trop_courte_est_refusee(self) -> None:
+        cfg = charger_config(ROOT / "config" / "devis.example.yaml")
+        for texte in ("", "   ", "devis ?"):
+            with self.assertRaises(ValueError):
+                generer_devis(texte, cfg, utiliser_ia=False)
+
+    def test_surface_aberrante_declenche_une_question_sans_chiffrage(self) -> None:
+        cfg = charger_config(ROOT / "config" / "devis.example.yaml")
+        doc = generer_devis(
+            "Salle de bain à Nantes 999 m2, douche, carrelage, gamme standard, photos disponibles.",
+            cfg,
+            id_devis="TEST-SURFACE",
+            utiliser_ia=False,
+        )
+
+        self.assertIsNone(doc.demande.surface_m2)
+        self.assertTrue(any("999" in q and "confirmer" in q.lower() for q in doc.demande.questions))
+        # Aucune ligne ne doit avoir été quantifiée avec la surface aberrante.
+        self.assertTrue(all(l.quantite < 999 for l in doc.lignes))
+
+    def test_surface_negative_jamais_lue_comme_positive(self) -> None:
+        cfg = charger_config(ROOT / "config" / "devis.example.yaml")
+        doc = generer_devis(
+            "Salle de bain à Nantes -999 m2, douche, gamme standard, photos disponibles.",
+            cfg,
+            id_devis="TEST-SURFACE-NEG",
+            utiliser_ia=False,
+        )
+
+        self.assertIsNone(doc.demande.surface_m2)
+
+    def test_metier_non_reconnu_declenche_une_question(self) -> None:
+        cfg = charger_config(ROOT / "config" / "devis.example.yaml")
+        doc = generer_devis(
+            "Installer une borne de recharge dans le garage à Nantes.",
+            cfg,
+            id_devis="TEST-METIER",
+            utiliser_ia=False,
+        )
+
+        self.assertTrue(any("métier" in q.lower() for q in doc.demande.questions))
+
+    def test_montant_en_lettres_declenche_une_question(self) -> None:
+        cfg = charger_config(ROOT / "config" / "devis.example.yaml")
+        doc = generer_devis(
+            "Refaire la salle de bain à Nantes, budget deux mille euros, gamme standard.",
+            cfg,
+            id_devis="TEST-LETTRES",
+            utiliser_ia=False,
+        )
+
+        self.assertTrue(any("toutes lettres" in q for q in doc.demande.questions))
+
+    def test_franchise_tva_produit_un_devis_sans_tva(self) -> None:
+        cfg = charger_config(ROOT / "config" / "devis.example.yaml")
+        cfg.artisan.franchise_tva = True
+        doc = generer_devis(
+            "Salle de bain à Nantes 6m2, douche, vasque, gamme standard, photos disponibles.",
+            cfg,
+            id_devis="TEST-FRANCHISE",
+            utiliser_ia=False,
+        )
+
+        self.assertEqual(doc.totaux.tva, Decimal("0.00"))
+        self.assertEqual(doc.totaux.total_ttc, doc.totaux.total_ht)
+        self.assertTrue(any("293 B" in c for c in doc.conditions))
+        self.assertIn("293 B", rendre_html(doc))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -57,6 +57,9 @@ class InvoiceDocument:
     totaux: InvoiceTotals
     conditions: list[str] = field(default_factory=list)
     statut: str = "a_regler"
+    date_echeance: str = ""
+    franchise_tva: bool = False
+    mentions_legales: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         def convert(value: Any) -> Any:

@@ -44,8 +44,10 @@ def main() -> None:
 
     try:
         cfg = charger_config(args.config)
-        doc = generer_devis(str(texte), cfg, id_devis=args.id)
-        paths = ecrire_exports(doc, RACINE / cfg.dossier_sortie)
+        dossier = RACINE / cfg.dossier_sortie
+        doc = generer_devis(str(texte), cfg, id_devis=args.id, dossier=dossier)
+        # Un id fourni à la main est une ré-édition volontaire du même devis.
+        paths = ecrire_exports(doc, dossier, ecraser=bool(args.id))
     except Exception as exc:
         print(f"Erreur agent devis : {exc}", file=sys.stderr)
         sys.exit(2)

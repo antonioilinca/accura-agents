@@ -9,6 +9,9 @@ from __future__ import annotations
 import re
 from datetime import date
 from decimal import Decimal
+from pathlib import Path
+
+from agents.common.fileio import ecrire_json_atomique, lire_json, verrou_fichier
 
 from .models import (
     QuoteConfig,
@@ -50,6 +53,26 @@ QUESTIONS = {
 }
 
 
+TEXTE_MINIMUM = 12
+
+# Une facture/un devis numéroté ne doit jamais entrer en collision : le compteur
+# journalier est persistant et verrouillé (même mécanique que les factures).
+SEQUENCE_FILE = "_sequence.json"
+
+
+def prochain_id_devis(dossier: Path, jour: date | None = None) -> str:
+    jour = jour or date.today()
+    cle_jour = jour.strftime("%Y%m%d")
+    dossier.mkdir(parents=True, exist_ok=True)
+    registre = dossier / SEQUENCE_FILE
+    with verrou_fichier(registre):
+        etat = lire_json(registre, {"jour": cle_jour, "compteur": 0})
+        compteur = int(etat.get("compteur", 0)) if etat.get("jour") == cle_jour else 0
+        compteur += 1
+        ecrire_json_atomique(registre, {"jour": cle_jour, "compteur": compteur})
+    return f"ACC-{cle_jour}-{compteur:03d}"
+
+
 def generer_devis(
     texte: str,
     cfg: QuoteConfig,
@@ -57,12 +80,23 @@ def generer_devis(
     utiliser_ia: bool = True,
     client_ia: StructuredClient | None = None,
     modele_ia: str | None = None,
+    dossier: Path | None = None,
 ) -> QuoteDocument:
+    if len(str(texte or "").strip()) < TEXTE_MINIMUM:
+        raise ValueError(
+            "Demande trop courte pour générer un devis fiable : décrivez le chantier "
+            "en une phrase au minimum (travaux, lieu, surface si connue)."
+        )
     demande = extraire_demande(texte, cfg)
     lignes = chiffrer(demande, cfg)
     totaux = calculer_totaux(lignes, cfg)
     conditions = conditions_devis(demande, cfg)
-    id_final = id_devis or f"ACC-{date.today().strftime('%Y%m%d')}-001"
+    if id_devis:
+        id_final = id_devis
+    elif dossier is not None:
+        id_final = prochain_id_devis(dossier)
+    else:
+        id_final = f"ACC-{date.today().strftime('%Y%m%d')}-001"
     doc = QuoteDocument(
         id_devis=id_final,
         date_creation=date.today().isoformat(),
@@ -80,11 +114,11 @@ def generer_devis(
 
 def extraire_demande(texte: str, cfg: QuoteConfig) -> ProjectRequest:
     normalise = _norm(texte)
-    metier = _detecter_metier(normalise, cfg)
+    metier, metier_sur = _detecter_metier(normalise, cfg)
     trade = cfg.metiers[metier]
     ville = _detecter_ville(texte, cfg)
     adresse = _detecter_adresse(texte)
-    surface = _detecter_surface(normalise)
+    surface, alerte_surface = _detecter_surface(normalise)
     type_chantier = _detecter_type_chantier(normalise)
     if metier == "renovation_generale" and (
         "rénovation" in normalise or "renovation" in normalise
@@ -94,6 +128,20 @@ def extraire_demande(texte: str, cfg: QuoteConfig) -> ProjectRequest:
     prestations, materiaux = _detecter_prestations(normalise, trade)
     contraintes = _detecter_contraintes(normalise)
     manquants = _infos_manquantes(trade, ville, adresse, surface, prestations, normalise)
+
+    questions = [QUESTIONS[m] for m in manquants if m in QUESTIONS]
+    if alerte_surface:
+        questions = [q for q in questions if q != QUESTIONS["surface"]]
+        questions.append(alerte_surface)
+    if not metier_sur:
+        questions.append(
+            f"Confirmer le métier concerné (proposé par défaut : {trade.libelle})."
+        )
+    if _nombres_en_lettres(normalise):
+        questions.append(
+            "Des montants ou quantités semblent dictés en toutes lettres : "
+            "confirmer les chiffres exacts avant envoi."
+        )
 
     return ProjectRequest(
         texte_source=texte.strip(),
@@ -108,7 +156,7 @@ def extraire_demande(texte: str, cfg: QuoteConfig) -> ProjectRequest:
         contraintes=contraintes,
         urgence=urgence,
         infos_manquantes=manquants,
-        questions=[QUESTIONS[m] for m in manquants if m in QUESTIONS],
+        questions=questions,
     )
 
 
@@ -153,7 +201,10 @@ def chiffrer(demande: ProjectRequest, cfg: QuoteConfig) -> list[QuoteLine]:
 
 def calculer_totaux(lignes: list[QuoteLine], cfg: QuoteConfig) -> QuoteTotals:
     total_ht = money(sum((l.total_ht for l in lignes), Decimal("0")))
-    tva = money(total_ht * cfg.pricing.taux_tva)
+    if cfg.artisan.franchise_tva:
+        tva = money("0")
+    else:
+        tva = money(total_ht * cfg.pricing.taux_tva)
     total_ttc = money(total_ht + tva)
     acompte = money(total_ttc * cfg.pricing.acompte_pourcentage)
     return QuoteTotals(total_ht=total_ht, tva=tva, total_ttc=total_ttc, acompte_ttc=acompte)
@@ -166,6 +217,8 @@ def conditions_devis(demande: ProjectRequest, cfg: QuoteConfig) -> list[str]:
         "Sous réserve de visite technique, accès chantier normal et supports en état correct.",
         "Les prix sont estimatifs tant que les photos, mesures et choix matériaux ne sont pas validés.",
     ]
+    if cfg.artisan.franchise_tva:
+        conditions.insert(0, "TVA non applicable, art. 293 B du CGI.")
     conditions.extend(trade.conditions)
     conditions.extend(cfg.artisan.mentions)
     return [c for c in conditions if c]
@@ -210,12 +263,16 @@ def _eur(value: Decimal) -> str:
     return f"{txt} €"
 
 
-def _detecter_metier(normalise: str, cfg: QuoteConfig) -> str:
+def _detecter_metier(normalise: str, cfg: QuoteConfig) -> tuple[str, bool]:
+    """Retourne (métier, détection_fiable). Aucun mot-clé reconnu → repli sur le
+    premier métier configuré, signalé comme incertain pour question à l'artisan."""
     scores = {}
     for nom, trade in cfg.metiers.items():
         scores[nom] = sum(1 for mot in trade.mots_cles if mot in normalise)
     meilleur = max(scores, key=scores.get)
-    return meilleur if scores[meilleur] > 0 else next(iter(cfg.metiers))
+    if scores[meilleur] > 0:
+        return meilleur, True
+    return next(iter(cfg.metiers)), False
 
 
 def _detecter_ville(texte: str, cfg: QuoteConfig) -> str | None:
@@ -238,11 +295,37 @@ def _detecter_adresse(texte: str) -> str | None:
     return match.group(0).strip() if match else None
 
 
-def _detecter_surface(normalise: str) -> Decimal | None:
-    match = re.search(r"(\d+(?:[,.]\d+)?)\s*(?:m2|mètres carrés|metres carres)", normalise)
+SURFACE_MIN = Decimal("1")
+SURFACE_MAX = Decimal("500")
+
+# Mots-nombres français de base : leur présence près d'une unité signale un montant
+# dicté en toutes lettres, que l'extraction chiffrée ne sait pas lire.
+_MOTS_NOMBRES = re.compile(
+    r"\b(?:dix|vingt|trente|quarante|cinquante|soixante|cent|cents|mille)\b"
+)
+
+
+def _detecter_surface(normalise: str) -> tuple[Decimal | None, str | None]:
+    """Retourne (surface, alerte). Une valeur négative ou hors plage plausible
+    n'est jamais chiffrée : elle déclenche une question de confirmation."""
+    match = re.search(
+        r"(?<![\d,.-])(\d+(?:[,.]\d+)?)\s*(?:m2|mètres carrés|metres carres)", normalise
+    )
     if not match:
-        return None
-    return Decimal(match.group(1).replace(",", "."))
+        return None, None
+    valeur = Decimal(match.group(1).replace(",", "."))
+    if valeur < SURFACE_MIN or valeur > SURFACE_MAX:
+        return None, (
+            f"La surface détectée ({match.group(1)} m²) semble inhabituelle : "
+            "pouvez-vous confirmer la surface exacte ?"
+        )
+    return valeur, None
+
+
+def _nombres_en_lettres(normalise: str) -> bool:
+    if not _MOTS_NOMBRES.search(normalise):
+        return False
+    return any(u in normalise for u in ("euro", "€", "m2", "mètre", "metre"))
 
 
 def _detecter_type_chantier(normalise: str) -> str:

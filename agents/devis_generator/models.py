@@ -27,6 +27,9 @@ class ArtisanIdentity:
     siret: str = ""
     assurance_decennale: str = ""
     logo_path: str = ""
+    # Franchise en base de TVA (micro-entreprise, art. 293 B du CGI) : aucun
+    # document ne doit alors afficher de TVA. Propagé du devis vers la facture.
+    franchise_tva: bool = False
     mentions: list[str] = field(default_factory=list)
 
 

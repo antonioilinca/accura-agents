@@ -71,7 +71,7 @@ class OnboardingTest(unittest.TestCase):
             root = Path(tmp)
             profile = save_profile(root, {
                 "assets": {"logo_path": "outputs/onboarding/assets/logo.png"},
-                "company": {"name": "Plomberie Test"},
+                "company": {"name": "Plomberie Test", "siret": "12345678900012"},
                 "business": {"main_trade": "plomberie", "service_area": ["Nantes"]},
             })
 
@@ -87,7 +87,7 @@ class OnboardingTest(unittest.TestCase):
             root = Path(tmp)
             profile = save_profile(root, {
                 "assets": {"logo_path": "outputs/onboarding/assets/logo.png"},
-                "company": {"name": "Plomberie Test"},
+                "company": {"name": "Plomberie Test", "siret": "12345678900012"},
                 "business": {"main_trade": "plomberie", "service_area": ["Nantes"]},
                 "quote_items": [{
                     "code": "douche_test",
@@ -111,11 +111,48 @@ class OnboardingTest(unittest.TestCase):
             self.assertIn("class='artisan-logo'", html)
             self.assertIn("../onboarding/assets/logo.png", html)
 
+    def test_taux_saisis_en_pourcentage_sont_normalises(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            profile = save_profile(Path(tmp), {
+                "quote_settings": {"vat_rate": "10", "margin_rate": "20 %", "deposit_rate": 30},
+            })
+
+            self.assertAlmostEqual(profile["quote_settings"]["vat_rate"], 0.10)
+            self.assertAlmostEqual(profile["quote_settings"]["margin_rate"], 0.20)
+            self.assertAlmostEqual(profile["quote_settings"]["deposit_rate"], 0.30)
+
+    def test_apply_refuse_siret_invalide(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            profile = save_profile(root, {
+                "company": {"name": "Plomberie Test", "siret": "SIRET à compléter"},
+                "business": {"main_trade": "plomberie", "service_area": ["Nantes"]},
+            })
+
+            with self.assertRaises(ValueError) as ctx:
+                apply_profile_to_devis_config(root, profile)
+            self.assertIn("SIRET", str(ctx.exception))
+
+    def test_franchise_tva_force_taux_zero_dans_config(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            profile = save_profile(Path(tmp), {
+                "company": {
+                    "name": "Plomberie Micro",
+                    "siret": "12345678900012",
+                    "franchise_tva": True,
+                },
+                "quote_settings": {"vat_rate": 0},
+            })
+            data = build_devis_yaml(profile)
+
+            self.assertTrue(data["artisan"]["franchise_tva"])
+            self.assertEqual(data["pricing"]["taux_tva"], "0")
+
     def test_apply_profile_creates_devis_config_loadable_by_agent(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             profile = save_profile(root, {
-                "company": {"name": "Plomberie Test"},
+                "company": {"name": "Plomberie Test", "siret": "12345678900012"},
                 "business": {"main_trade": "plomberie", "service_area": ["Nantes"]},
                 "quote_items": [{
                     "code": "douche_test",

@@ -196,8 +196,10 @@ def _recent_leads(limit: int = 8) -> list[dict]:
 
 def _generate_quote(text: str, quote_id: str | None = None) -> dict:
     cfg = charger_config(_config_devis())
-    doc = generer_devis(text, cfg, id_devis=quote_id)
-    paths = ecrire_exports(doc, RACINE / cfg.dossier_sortie)
+    dossier = RACINE / cfg.dossier_sortie
+    doc = generer_devis(text, cfg, id_devis=quote_id, dossier=dossier)
+    # Un id saisi par l'artisan est une ré-édition volontaire du même devis.
+    paths = ecrire_exports(doc, dossier, ecraser=bool(quote_id))
     payload = doc.to_dict()
     payload["exports"] = {
         "json": f"/outputs/devis/{paths['json'].name}",
@@ -213,8 +215,9 @@ def _generate_invoice(quote_id: str, invoice_type: str = "acompte") -> dict:
     if not chemin:
         raise FileNotFoundError(f"Devis introuvable : {quote_id}")
     devis = json.loads(chemin.read_text(encoding="utf-8"))
-    doc = generer_facture_depuis_devis(devis, type_facture=invoice_type)
-    paths = ecrire_exports_facture(doc, RACINE / "outputs" / "factures")
+    dossier = RACINE / "outputs" / "factures"
+    doc = generer_facture_depuis_devis(devis, type_facture=invoice_type, dossier=dossier)
+    paths = ecrire_exports_facture(doc, dossier)
     payload = doc.to_dict()
     payload["exports"] = {
         "json": f"/outputs/factures/{paths['json'].name}",
@@ -440,7 +443,15 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8787)
     args = parser.parse_args()
 
-    server = ThreadingHTTPServer((args.host, args.port), DashboardHandler)
+    try:
+        server = ThreadingHTTPServer((args.host, args.port), DashboardHandler)
+    except OSError:
+        print(
+            f"Le port {args.port} est déjà utilisé : le dashboard tourne sans doute déjà.\n"
+            f"Ouvrez http://{args.host}:{args.port} dans le navigateur, ou relancez avec "
+            f"--port {args.port + 1}."
+        )
+        raise SystemExit(1)
     print(f"Dashboard Accura Ouest : http://{args.host}:{args.port}")
     print("Ctrl+C pour arrêter.")
     server.serve_forever()
