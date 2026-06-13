@@ -1,0 +1,11 @@
+# Ne pas copier dans l'image : environnement local, historique, données, secrets.
+.venv/
+venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+outputs/*
+!outputs/.gitkeep
+.env
+*.aiff
