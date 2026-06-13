@@ -327,6 +327,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.send_error(404)
 
     def do_GET(self) -> None:  # noqa: N802
+        if self.path == "/healthz":  # sonde de santé de l'hébergeur, sans authentification
+            _text_response(self, b"ok", "text/plain; charset=utf-8")
+            return
         if not self._authorized():
             return
         if self.path == "/" or self.path.startswith("/?"):
@@ -505,16 +508,22 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8787)
     args = parser.parse_args()
 
+    # En hébergement cloud (Render, etc.), la plateforme impose le port via $PORT et
+    # exige une écoute sur toutes les interfaces (0.0.0.0). En local (Mac), on reste
+    # sur 127.0.0.1:8787 pour ne rien exposer en dehors de la machine.
+    port = int(os.environ.get("PORT") or args.port)
+    host = os.environ.get("HOST") or ("0.0.0.0" if os.environ.get("PORT") else args.host)
+
     try:
-        server = ThreadingHTTPServer((args.host, args.port), DashboardHandler)
+        server = ThreadingHTTPServer((host, port), DashboardHandler)
     except OSError:
         print(
-            f"Le port {args.port} est déjà utilisé : le dashboard tourne sans doute déjà.\n"
-            f"Ouvrez http://{args.host}:{args.port} dans le navigateur, ou relancez avec "
-            f"--port {args.port + 1}."
+            f"Le port {port} est déjà utilisé : le dashboard tourne sans doute déjà.\n"
+            f"Ouvrez http://{host}:{port} dans le navigateur, ou relancez avec "
+            f"--port {port + 1}."
         )
         raise SystemExit(1)
-    print(f"Dashboard Accura Ouest : http://{args.host}:{args.port}")
+    print(f"Dashboard Accura Ouest : http://{host}:{port}")
     print("Ctrl+C pour arrêter.")
     server.serve_forever()
 

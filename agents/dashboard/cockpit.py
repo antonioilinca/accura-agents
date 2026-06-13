@@ -52,6 +52,14 @@ def _config_devis() -> Path:
     return locale if locale.exists() else RACINE / "config" / "devis.example.yaml"
 
 
+def _config_leads() -> Path:
+    """Config de l'agent acquisition : la version locale si elle existe (chaque zone a
+    la sienne, non versionnée), sinon l'exemple versionné — indispensable en hébergement
+    cloud où config.yaml est absent."""
+    locale = RACINE / "config" / "config.yaml"
+    return locale if locale.exists() else RACINE / "config" / "config.example.yaml"
+
+
 def _dernier_devis_json() -> Path | None:
     dossier = RACINE / "outputs" / "devis"
     if not dossier.exists():
@@ -167,7 +175,7 @@ def _run_crm(run_id: str):
 
 def _run_acquisition(run_id: str):
     activity.add_step(run_id, "Vérification de la clé IA…", "info")
-    cfg = charger_config_leads(RACINE / "config" / "config.yaml")
+    cfg = charger_config_leads(_config_leads())
     provider = cfg.llm_provider
     if provider == "anthropic" and not os.environ.get("ANTHROPIC_API_KEY"):
         activity.add_step(run_id, "Clé ANTHROPIC_API_KEY absente dans .env", "error")

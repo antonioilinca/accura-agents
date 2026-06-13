@@ -1,0 +1,8 @@
+# Dépendances du cockpit Accura Ouest pour l'hébergement cloud (Render).
+# Cœur uniquement : devis, factures, relances, avis, CRM, acquisition (Groq).
+# faster-whisper (agent vocal local) est volontairement EXCLU : trop lourd pour le
+# free tier et inutile sans micro côté serveur — l'agent vocal se désactive proprement.
+anthropic>=0.69
+requests>=2.31
+pyyaml>=6.0
+python-dotenv>=1.0

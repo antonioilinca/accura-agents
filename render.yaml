@@ -1,0 +1,25 @@
+# Blueprint de déploiement du cockpit Accura Ouest sur Render (https://render.com).
+# Déploiement : Render -> New -> Blueprint -> choisir le dépôt antonioilinca/accura-agents.
+# Render lit ce fichier, crée le service web, et demande les 3 variables "sync: false".
+services:
+  - type: web
+    name: accura-cockpit
+    runtime: python
+    plan: free
+    region: frankfurt            # Europe (RGPD-friendly, proche France)
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m agents.dashboard.run
+    healthCheckPath: /healthz    # répond 200 sans mot de passe -> Render voit le service "vivant"
+    autoDeploy: true             # redéploie automatiquement à chaque push sur main
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      # Accès protégé OBLIGATOIRE : sans mot de passe, le cockpit serait ouvert à tout internet.
+      - key: ACCURA_DASHBOARD_USER
+        sync: false
+      - key: ACCURA_DASHBOARD_PASSWORD
+        sync: false
+      # Clé IA gratuite (Groq) pour l'agent Acquisition. Sans elle, les 6 autres agents
+      # fonctionnent quand même ; seul l'agent Acquisition reste en attente d'une clé.
+      - key: GROQ_API_KEY
+        sync: false
