@@ -7,10 +7,12 @@
 from __future__ import annotations
 
 import argparse
+import base64
 from email.parser import BytesParser
 from email.policy import default
 import json
 import mimetypes
+import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote
@@ -28,9 +30,20 @@ from agents.facture_generator.render import ecrire_exports as ecrire_exports_fac
 from agents.relance_generator.generator import generer_relances_depuis_devis
 from agents.relance_generator.render import ecrire_exports as ecrire_exports_relance
 from agents.dashboard.onboarding import PLANS, apply_profile_to_devis_config, load_profile, save_logo_asset, save_profile
+from agents.dashboard import activity, cockpit
 
 RACINE = Path(__file__).resolve().parents[2]
 STATIC = Path(__file__).resolve().parent / "static"
+
+
+def _dashboard_password() -> str | None:
+    """Mot de passe d'accès. Si absent, le dashboard reste ouvert (mode local)."""
+    pw = (os.environ.get("ACCURA_DASHBOARD_PASSWORD") or "").strip()
+    return pw or None
+
+
+def _dashboard_user() -> str:
+    return (os.environ.get("ACCURA_DASHBOARD_USER") or "accura").strip()
 
 
 def _config_devis() -> Path:
@@ -280,7 +293,32 @@ def _extract_multipart_file(headers, body: bytes, field_name: str) -> tuple[str,
 class DashboardHandler(BaseHTTPRequestHandler):
     server_version = "AccuraDashboard/0.1"
 
+    def _authorized(self) -> bool:
+        """Mot de passe (Basic Auth) si ACCURA_DASHBOARD_PASSWORD est défini.
+
+        En local sans mot de passe, l'accès reste libre. En ligne (tunnel), le mot
+        de passe est obligatoire : on ne sert jamais de page ni d'API sans lui.
+        """
+        password = _dashboard_password()
+        if not password:
+            return True
+        header = self.headers.get("Authorization", "")
+        if header.startswith("Basic "):
+            try:
+                user, _, given = base64.b64decode(header[6:]).decode("utf-8").partition(":")
+                if user == _dashboard_user() and given == password:
+                    return True
+            except Exception:
+                pass
+        self.send_response(401)
+        self.send_header("WWW-Authenticate", 'Basic realm="Accura Ouest"')
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        return False
+
     def do_HEAD(self) -> None:  # noqa: N802
+        if not self._authorized():
+            return
         if self.path == "/" or self.path.startswith("/?"):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -289,6 +327,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.send_error(404)
 
     def do_GET(self) -> None:  # noqa: N802
+        if not self._authorized():
+            return
         if self.path == "/" or self.path.startswith("/?"):
             _text_response(self, (STATIC / "index.html").read_bytes(), "text/html; charset=utf-8")
             return
@@ -302,10 +342,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "crm": _crm_pipeline(),
                 "onboarding": load_profile(RACINE),
                 "plans": PLANS,
+                "agents": cockpit.catalog_public(),
+                "activity": {"agents": activity.agent_states(), "runs": activity.snapshot()},
             })
             return
         if self.path == "/api/onboarding":
             _json_response(self, {"profile": load_profile(RACINE), "plans": PLANS})
+            return
+        if self.path == "/api/agents/activity":
+            _json_response(self, {"agents": activity.agent_states(), "runs": activity.snapshot()})
             return
         if self.path.startswith("/static/"):
             chemin = (STATIC / self.path.removeprefix("/static/")).resolve()
@@ -322,6 +367,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.send_error(404)
 
     def do_POST(self) -> None:  # noqa: N802
+        if not self._authorized():
+            return
         if self.path == "/api/devis":
             self._handle_devis()
             return
@@ -346,7 +393,22 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if self.path == "/api/onboarding/logo":
             self._handle_logo_upload()
             return
+        if self.path == "/api/agents/run":
+            self._handle_agent_run()
+            return
         self.send_error(404)
+
+    def _handle_agent_run(self) -> None:
+        length = int(self.headers.get("Content-Length", "0") or "0")
+        try:
+            data = json.loads(self.rfile.read(length).decode("utf-8"))
+            agent = str(data.get("agent", "")).strip()
+            run_id = cockpit.start_run(agent)
+            _json_response(self, {"run_id": run_id})
+        except KeyError:
+            _json_response(self, {"error": "Agent inconnu"}, status=400)
+        except Exception as exc:
+            _json_response(self, {"error": str(exc)}, status=500)
 
     def _handle_devis(self) -> None:
         length = int(self.headers.get("Content-Length", "0") or "0")

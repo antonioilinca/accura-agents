@@ -7,7 +7,24 @@ const state = {
   followupMessages: [],
   onboarding: null,
   plans: {},
+  agents: [],
+  activityTimer: null,
+  activitySig: "",
 };
+
+const VIEW_TITLES = {
+  activite: ["Vos agents en direct", "Lance un agent sur une tâche de test et regarde-le travailler en temps réel."],
+  devis: ["Agent Devis Accura", "Demande brute ou transcription vocale -> devis structuré prêt à envoyer."],
+  factures: ["Agent Factures", "Devis validé -> facture d'acompte ou de solde. Les montants restent ceux du devis."],
+  prospects: ["Agent Acquisition", "Promesse Croissance : prospects qualifiés à traiter."],
+  relances: ["Agent Relances", "Messages J+3, J+7 et J+15 prêts à copier depuis un devis."],
+  avis: ["Agent Avis Google", "Message de demande d'avis après chantier, prêt à copier."],
+  crm: ["Mini CRM", "Pipeline local : devis envoyé, relancé, signé ou perdu."],
+  config: ["Onboarding artisan", "Calibre les agents selon l'abonnement et les prix réels."],
+};
+
+const STATUS_LABELS = { idle: "En attente", running: "Travaille…", done: "Terminé", error: "Erreur" };
+const BADGE_LABELS = { running: "En cours", done: "OK", error: "Erreur" };
 const qs = (selector) => document.querySelector(selector);
 const money = (value) => new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -21,6 +38,9 @@ async function bootstrap() {
   state.recentQuotes = data.recent_quotes || [];
   state.onboarding = data.onboarding || null;
   state.plans = data.plans || {};
+  state.agents = data.agents || [];
+  renderAgentCards((data.activity || {}).agents || {});
+  renderActivity((data.activity || {}).runs || []);
   renderExamples();
   renderRecentQuotes(state.recentQuotes);
   renderInvoiceQuoteOptions();
@@ -534,6 +554,114 @@ function setFollowupStatus(text) {
   qs("#followupStatus").textContent = text;
 }
 
+function renderAgentCards(states = {}) {
+  const grid = qs("#agentGrid");
+  if (!grid) return;
+  if (!state.agents.length) {
+    grid.innerHTML = "<div class='empty-state'>Catalogue d'agents indisponible.</div>";
+    return;
+  }
+  grid.innerHTML = state.agents.map((agent) => {
+    const info = states[agent.key] || {};
+    const status = info.status || "idle";
+    const running = status === "running";
+    return `
+      <article class="agent-card ${status}">
+        <div class="agent-card-head">
+          <span class="agent-dot ${status}"></span>
+          <div>
+            <strong>${escapeHtml(agent.nom)}</strong>
+            <span class="agent-offre">Offre ${escapeHtml(agent.offre)}</span>
+          </div>
+        </div>
+        <p class="agent-role">${escapeHtml(agent.role)}</p>
+        <div class="agent-card-foot">
+          <button class="primary small run-agent" type="button" data-agent="${escapeHtml(agent.key)}" ${running ? "disabled" : ""}>
+            ${running ? "En cours…" : "Lancer un test"}
+          </button>
+          <span class="agent-status-label ${status}">${STATUS_LABELS[status] || ""}</span>
+        </div>
+      </article>`;
+  }).join("");
+}
+
+function renderActivity(runs = []) {
+  const feed = qs("#activityFeed");
+  if (!feed) return;
+  if (!runs.length) {
+    feed.innerHTML = "<div class='empty-state'>Aucun agent lancé pour l'instant. Clique sur « Lancer un test » au-dessus.</div>";
+    return;
+  }
+  feed.innerHTML = runs.map((run) => `
+    <article class="run ${escapeHtml(run.status)}">
+      <div class="run-head">
+        <div><strong>${escapeHtml(run.agent_label)}</strong> <span class="run-task">${escapeHtml(run.task)}</span></div>
+        <span class="run-badge ${escapeHtml(run.status)}">${BADGE_LABELS[run.status] || escapeHtml(run.status)}</span>
+      </div>
+      <ol class="run-steps">
+        ${(run.steps || []).map((step) => `
+          <li class="step ${escapeHtml(step.status)}"><span class="step-t">${escapeHtml(step.t)}</span>${escapeHtml(step.message)}</li>
+        `).join("")}
+      </ol>
+      ${run.summary ? `<div class="run-summary">${escapeHtml(run.summary)}</div>` : ""}
+      ${Object.keys(run.exports || {}).length ? `<div class="exports">${Object.entries(run.exports).map(([label, href]) => (
+        `<a href="${href}" target="_blank">${escapeHtml(label.toUpperCase())}</a>`
+      )).join("")}</div>` : ""}
+    </article>
+  `).join("");
+}
+
+function activitySignature(data) {
+  const runs = (data.runs || []).map((run) => [run.id, run.status, (run.steps || []).length]);
+  return JSON.stringify(runs) + "|" + JSON.stringify(data.agents || {});
+}
+
+async function pollActivity() {
+  let data;
+  try {
+    data = await (await fetch("/api/agents/activity")).json();
+  } catch (error) {
+    state.activityTimer = null;
+    return;
+  }
+  const signature = activitySignature(data);
+  if (signature !== state.activitySig) {
+    state.activitySig = signature;
+    renderAgentCards(data.agents || {});
+    renderActivity(data.runs || []);
+  }
+  const running = (data.runs || []).some((run) => run.status === "running");
+  if (running) {
+    state.activityTimer = setTimeout(pollActivity, 800);
+    qs("#cockpitState").textContent = "En direct…";
+  } else {
+    state.activityTimer = null;
+    qs("#cockpitState").textContent = "Prêt";
+  }
+}
+
+function startPolling() {
+  if (state.activityTimer) return;
+  pollActivity();
+}
+
+async function runAgent(agentKey) {
+  qs("#cockpitState").textContent = "Lancement…";
+  try {
+    const response = await fetch("/api/agents/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ agent: agentKey }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Erreur lancement");
+    state.activitySig = "";
+    startPolling();
+  } catch (error) {
+    qs("#cockpitState").textContent = error.message;
+  }
+}
+
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -555,6 +683,21 @@ document.addEventListener("click", (event) => {
   document.querySelectorAll(".view").forEach((view) => view.classList.remove("active"));
   nav.classList.add("active");
   qs(`#view-${nav.dataset.view}`).classList.add("active");
+  const titles = VIEW_TITLES[nav.dataset.view];
+  if (titles) {
+    qs("#topTitle").textContent = titles[0];
+    qs("#topSub").textContent = titles[1];
+  }
+  if (nav.dataset.view === "activite") startPolling();
+});
+
+qs("#agentGrid").addEventListener("click", (event) => {
+  const button = event.target.closest(".run-agent");
+  if (!button || button.disabled) return;
+  runAgent(button.dataset.agent);
+});
+qs("#refreshActivityBtn").addEventListener("click", () => {
+  if (!state.activityTimer) pollActivity();
 });
 
 qs("#exampleSelect").addEventListener("change", (event) => {
