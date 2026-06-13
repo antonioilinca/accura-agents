@@ -7,11 +7,39 @@ fichiers de config.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+
+def _resoudre_llm(llm: dict) -> tuple[str, Any, str, str, str]:
+    """Résout le fournisseur d'IA et les modèles.
+
+    Avec ``provider: auto`` dans config.yaml : si ANTHROPIC_API_KEY est présente,
+    on bascule automatiquement sur Claude (qualité maximale) ; sinon on reste sur
+    le fournisseur gratuit (Groq/Llama). Ajouter la clé suffit donc à passer en
+    production, sans éditer aucun fichier. Un ``provider`` explicite est respecté tel quel.
+    """
+    provider = str(llm.get("provider", "openai_compat"))
+    base_url = llm.get("base_url")
+    api_key_env = str(llm.get("api_key_env", "GROQ_API_KEY"))
+    modele_tri = str(llm.get("modele_tri", "llama-3.3-70b-versatile"))
+    modele_qualif = str(llm.get("modele_qualif", "llama-3.3-70b-versatile"))
+
+    if provider == "auto":
+        if os.environ.get("ANTHROPIC_API_KEY"):
+            return (
+                "anthropic",
+                None,
+                "ANTHROPIC_API_KEY",
+                str(llm.get("modele_tri_anthropic", "claude-haiku-4-5-20251001")),
+                str(llm.get("modele_qualif_anthropic", "claude-sonnet-4-6")),
+            )
+        return ("openai_compat", base_url, api_key_env, modele_tri, modele_qualif)
+    return (provider, base_url, api_key_env, modele_tri, modele_qualif)
 
 
 @dataclass
@@ -103,6 +131,7 @@ def charger_config(chemin_config: str | Path) -> Config:
     qualif = data.get("qualification") or {}
     sortie = data.get("sortie") or {}
     llm = data.get("llm") or {}
+    llm_provider, llm_base_url, llm_api_key_env, modele_tri, modele_qualif = _resoudre_llm(llm)
 
     return Config(
         metier=metier,
@@ -115,11 +144,11 @@ def charger_config(chemin_config: str | Path) -> Config:
         objectif_hebdo_max=int(qualif.get("objectif_hebdo_max", 3)),
         max_qualif_par_run=int(qualif.get("max_qualif_par_run", 60)),
         surface_max_artisan=int(qualif.get("surface_max_artisan", 600)),
-        llm_provider=str(llm.get("provider", "openai_compat")),
-        llm_base_url=llm.get("base_url"),
-        llm_api_key_env=str(llm.get("api_key_env", "GROQ_API_KEY")),
-        modele_tri=str(llm.get("modele_tri", "llama-3.3-70b-versatile")),
-        modele_qualif=str(llm.get("modele_qualif", "llama-3.3-70b-versatile")),
+        llm_provider=llm_provider,
+        llm_base_url=llm_base_url,
+        llm_api_key_env=llm_api_key_env,
+        modele_tri=modele_tri,
+        modele_qualif=modele_qualif,
         llm_max_retry_after_seconds=int(llm.get("max_retry_after_seconds", 120)),
         llm_intervalle_min_s=float(llm.get("intervalle_min_s", 2.5)),
         dossier_sortie=racine / (sortie.get("dossier") or "outputs"),

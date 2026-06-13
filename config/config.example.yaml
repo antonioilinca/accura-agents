@@ -77,11 +77,15 @@ sources:
 #     modeles: claude-haiku-4-5 (tri) / claude-sonnet-4-6 (qualif)
 # ----------------------------------------------------------------------------
 llm:
-  provider: openai_compat
-  base_url: https://api.groq.com/openai/v1
+  # auto = bascule sur Claude si ANTHROPIC_API_KEY est présente, sinon Groq (gratuit).
+  # Il suffit donc d'ajouter la clé Claude pour passer en qualité maximale (zéro autre réglage).
+  provider: auto
+  base_url: https://api.groq.com/openai/v1   # fournisseur gratuit utilisé tant qu'il n'y a pas de clé Claude
   api_key_env: GROQ_API_KEY
   modele_tri: llama-3.3-70b-versatile
   modele_qualif: llama-3.3-70b-versatile
+  modele_tri_anthropic: claude-haiku-4-5-20251001   # tri rapide quand Claude est actif
+  modele_qualif_anthropic: claude-sonnet-4-6        # qualification fine quand Claude est actif
   max_retry_after_seconds: 120  # au-delà, le run saute le lead au lieu d'attendre trop longtemps
   intervalle_min_s: 2.5         # espacement minimal entre appels (évite les 429 du free tier)
 
