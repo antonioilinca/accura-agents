@@ -10,9 +10,30 @@ const state = {
   agents: [],
   activityTimer: null,
   activitySig: "",
+  clients: [],
+  activeClient: null,
+  clientsFilter: "",
+};
+
+const CLIENT_STATUS_LABELS = {
+  prospect: "Prospect",
+  onboarding: "Onboarding",
+  actif: "Actif",
+  pause: "Pause",
+  perdu: "Perdu",
+};
+
+const TRADE_LABELS = {
+  plomberie: "Plomberie",
+  electricite: "Électricité",
+  carrelage: "Carrelage",
+  menuiserie: "Menuiserie",
+  peinture: "Peinture",
+  renovation_generale: "Rénovation générale",
 };
 
 const VIEW_TITLES = {
+  clients: ["Vos clients artisans", "Le hub de l'agence : choisis pour quel artisan tu génères devis, factures et relances."],
   activite: ["Vos agents en direct", "Lance un agent sur une tâche de test et regarde-le travailler en temps réel."],
   devis: ["Agent Devis Accura", "Demande brute ou transcription vocale -> devis structuré prêt à envoyer."],
   factures: ["Agent Factures", "Devis validé -> facture d'acompte ou de solde. Les montants restent ceux du devis."],
@@ -39,6 +60,11 @@ async function bootstrap() {
   state.onboarding = data.onboarding || null;
   state.plans = data.plans || {};
   state.agents = data.agents || [];
+  state.clients = data.clients || [];
+  state.activeClient = data.active_client || null;
+  renderClients();
+  renderActiveClientBar();
+  renderAccountBox();
   renderAgentCards((data.activity || {}).agents || {});
   renderActivity((data.activity || {}).runs || []);
   renderExamples();
@@ -51,6 +77,239 @@ async function bootstrap() {
   renderCRM(data.crm || {});
   renderOnboarding();
   if (state.examples[0]) qs("#requestText").value = state.examples[0].text;
+}
+
+// --- Clients (hub agence) ---------------------------------------------------
+
+function planLabel(plan) {
+  const details = state.plans[plan];
+  if (details) {
+    const price = details.price ? ` · ${details.price}` : "";
+    return `${details.label || plan}${price}`;
+  }
+  return plan || "—";
+}
+
+function planShort(plan) {
+  return state.plans[plan]?.label || plan || "—";
+}
+
+function tradeLabel(trade) {
+  return TRADE_LABELS[trade] || trade || "—";
+}
+
+function statusLabel(status) {
+  return CLIENT_STATUS_LABELS[status] || status || "—";
+}
+
+function areaText(area) {
+  if (Array.isArray(area)) return area.join(", ");
+  return area || "";
+}
+
+function statusPill(status) {
+  return `<span class="status-pill ${escapeHtml(status)}">${escapeHtml(statusLabel(status))}</span>`;
+}
+
+function clientStatusSelect(current) {
+  const options = Object.entries(CLIENT_STATUS_LABELS).map(([value, label]) => (
+    `<option value="${value}" ${value === current ? "selected" : ""}>${escapeHtml(label)}</option>`
+  )).join("");
+  return `<select class="client-status">${options}</select>`;
+}
+
+function renderActiveClientBar() {
+  const bar = qs("#activeClientBar");
+  const text = qs("#activeClientText");
+  if (!bar || !text) return;
+  const active = state.activeClient;
+  if (active) {
+    bar.classList.remove("empty");
+    text.innerHTML = `Client actif : <strong>${escapeHtml(active.company_name)}</strong> `
+      + `(${escapeHtml(planShort(active.plan))}, ${escapeHtml(statusLabel(active.status))})`;
+  } else {
+    bar.classList.add("empty");
+    text.innerHTML = "Aucun client sélectionné — mode démo";
+  }
+}
+
+function renderAccountBox() {
+  // Carte compte (haut à droite) : reflète le client actif ou l'artisan démo.
+  const box = qs(".account");
+  if (!box) return;
+  const active = state.activeClient;
+  if (active) {
+    box.innerHTML = `<strong>${escapeHtml(active.company_name)}</strong>`
+      + `<span>Offre ${escapeHtml(planShort(active.plan))}</span>`;
+  } else {
+    box.innerHTML = "<strong>Artisan Démo</strong><span>Mode démo</span>";
+  }
+}
+
+function renderClients() {
+  const grid = qs("#clientsGrid");
+  if (!grid) return;
+  const all = state.clients || [];
+  const filter = state.clientsFilter;
+  const items = filter ? all.filter((client) => client.status === filter) : all;
+
+  if (!all.length) {
+    grid.innerHTML = "<div class='empty-state'>Ajoutez votre premier client artisan avec le formulaire ci-dessous.</div>";
+    return;
+  }
+  if (!items.length) {
+    grid.innerHTML = `<div class='empty-state'>Aucun client avec le statut « ${escapeHtml(statusLabel(filter))} ».</div>`;
+    return;
+  }
+
+  const activeSlug = state.activeClient?.slug || "";
+  grid.innerHTML = items.map((client) => {
+    const isActive = client.slug === activeSlug;
+    const area = areaText(client.service_area);
+    const contact = [client.contact_name, client.phone].filter(Boolean).join(" · ");
+    return `
+      <article class="client-card ${isActive ? "is-active" : ""}" data-slug="${escapeAttribute(client.slug)}">
+        <div class="client-card-head">
+          <div>
+            <strong>${escapeHtml(client.company_name)}</strong>
+            <span class="client-trade">${escapeHtml(tradeLabel(client.main_trade))}</span>
+          </div>
+          ${statusPill(client.status)}
+        </div>
+        <div class="client-meta">
+          <div class="client-meta-row client-plan">${escapeHtml(planLabel(client.plan))}</div>
+          ${area ? `<div class="client-meta-row"><span>Zone :</span> ${escapeHtml(area)}</div>` : ""}
+          ${contact ? `<div class="client-meta-row"><span>Contact :</span> ${escapeHtml(contact)}</div>` : ""}
+          ${client.email ? `<div class="client-meta-row"><span>Email :</span> ${escapeHtml(client.email)}</div>` : ""}
+        </div>
+        <div class="client-card-foot">
+          <div class="client-card-actions">
+            ${clientStatusSelect(client.status)}
+            ${isActive
+              ? "<span class='client-active-tag'>Client actif</span>"
+              : "<button class='primary small activate-client' type='button'>Activer</button>"}
+          </div>
+        </div>
+      </article>`;
+  }).join("");
+}
+
+async function reloadCockpit() {
+  // Recharge tout le cockpit pour refléter le nouveau client actif partout.
+  const fresh = await (await fetch("/api/bootstrap")).json();
+  state.recentQuotes = fresh.recent_quotes || [];
+  state.onboarding = fresh.onboarding || null;
+  state.plans = fresh.plans || {};
+  state.clients = fresh.clients || [];
+  state.activeClient = fresh.active_client || null;
+  renderClients();
+  renderActiveClientBar();
+  renderAccountBox();
+  renderRecentQuotes(state.recentQuotes);
+  renderInvoiceQuoteOptions();
+  renderRecentInvoices(fresh.recent_invoices || []);
+  renderFollowupQuoteOptions();
+  renderRecentFollowups(fresh.recent_followups || []);
+  renderRecentLeads(fresh.recent_leads || []);
+  renderCRM(fresh.crm || {});
+  renderOnboarding();
+}
+
+async function activateClient(slug) {
+  qs("#clientsState").textContent = "Activation…";
+  try {
+    const response = await fetch("/api/clients/active", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Erreur activation");
+    await reloadCockpit();
+    qs("#clientsState").textContent = "Client activé";
+  } catch (error) {
+    qs("#clientsState").textContent = error.message;
+  }
+}
+
+async function clearActiveClient() {
+  qs("#clientsState").textContent = "Mise à jour…";
+  try {
+    const response = await fetch("/api/clients/active", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug: null }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Erreur mise à jour");
+    await reloadCockpit();
+    qs("#clientsState").textContent = "Mode démo";
+  } catch (error) {
+    qs("#clientsState").textContent = error.message;
+  }
+}
+
+async function updateClientStatus(slug, status) {
+  qs("#clientsState").textContent = "Mise à jour statut…";
+  try {
+    const response = await fetch("/api/clients/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug, status }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Erreur statut");
+    const fiche = data.client;
+    state.clients = state.clients.map((client) => (client.slug === fiche.slug ? fiche : client));
+    if (state.activeClient && state.activeClient.slug === fiche.slug) {
+      state.activeClient = fiche;
+    }
+    renderClients();
+    renderActiveClientBar();
+    renderAccountBox();
+    qs("#clientsState").textContent = "Statut mis à jour";
+  } catch (error) {
+    qs("#clientsState").textContent = error.message;
+  }
+}
+
+async function createClient(event) {
+  event.preventDefault();
+  const form = qs("#newClientForm");
+  const companyName = form.company_name.value.trim();
+  if (!companyName) {
+    qs("#newClientMessage").textContent = "Le nom de l'entreprise est obligatoire";
+    return;
+  }
+  qs("#newClientMessage").textContent = "Création…";
+  qs("#createClientBtn").disabled = true;
+  try {
+    const response = await fetch("/api/clients", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        company_name: companyName,
+        main_trade: form.main_trade.value,
+        plan: form.plan.value,
+        status: form.status.value,
+        contact_name: form.contact_name.value.trim(),
+        phone: form.phone.value.trim(),
+        email: form.email.value.trim(),
+        service_area: form.service_area.value.trim(),
+        notes: form.notes.value.trim(),
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Erreur création client");
+    form.reset();
+    await reloadCockpit();
+    qs("#newClientMessage").textContent = `Client ajouté : ${data.client?.company_name || companyName}`;
+    qs("#clientsState").textContent = "Client ajouté";
+  } catch (error) {
+    qs("#newClientMessage").textContent = error.message;
+  } finally {
+    qs("#createClientBtn").disabled = false;
+  }
 }
 
 function renderExamples() {
@@ -747,5 +1006,49 @@ qs("#applyOnboardingBtn").addEventListener("click", () => {
 qs("#uploadLogoBtn").addEventListener("click", () => {
   uploadLogo().catch((error) => qs("#onboardingMessage").textContent = error.message);
 });
+
+// --- Clients : navigation + actions ----------------------------------------
+
+function goToView(view) {
+  const nav = document.querySelector(`.nav-item[data-view="${view}"]`);
+  if (!nav) return;
+  document.querySelectorAll(".nav-item").forEach((item) => item.classList.remove("active"));
+  document.querySelectorAll(".view").forEach((section) => section.classList.remove("active"));
+  nav.classList.add("active");
+  qs(`#view-${view}`).classList.add("active");
+  const titles = VIEW_TITLES[view];
+  if (titles) {
+    qs("#topTitle").textContent = titles[0];
+    qs("#topSub").textContent = titles[1];
+  }
+  if (view === "activite") startPolling();
+}
+
+qs("#changeClientBtn").addEventListener("click", () => goToView("clients"));
+
+qs("#clientsFilter").addEventListener("click", (event) => {
+  const chip = event.target.closest(".chip");
+  if (!chip) return;
+  state.clientsFilter = chip.dataset.status || "";
+  qs("#clientsFilter").querySelectorAll(".chip").forEach((item) => item.classList.remove("active"));
+  chip.classList.add("active");
+  renderClients();
+});
+
+qs("#clientsGrid").addEventListener("click", (event) => {
+  const button = event.target.closest(".activate-client");
+  if (!button) return;
+  const card = button.closest(".client-card");
+  if (card) activateClient(card.dataset.slug);
+});
+
+qs("#clientsGrid").addEventListener("change", (event) => {
+  const select = event.target.closest(".client-status");
+  if (!select) return;
+  const card = select.closest(".client-card");
+  if (card) updateClientStatus(card.dataset.slug, select.value);
+});
+
+qs("#newClientForm").addEventListener("submit", createClient);
 
 bootstrap().catch((error) => setStatus(error.message));

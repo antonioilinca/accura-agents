@@ -18,7 +18,8 @@
         </div>
       </div>
       <nav class="nav">
-        <button class="nav-item active" data-view="activite">⚡ Activité</button>
+        <button class="nav-item active" data-view="clients">Clients</button>
+        <button class="nav-item" data-view="activite">⚡ Activité</button>
         <button class="nav-item" data-view="devis">Devis</button>
         <button class="nav-item" data-view="factures">Factures</button>
         <button class="nav-item" data-view="prospects">Prospects</button>
@@ -31,6 +32,14 @@
     </aside>
 
     <main class="main">
+      <div class="active-client-bar" id="activeClientBar">
+        <div class="active-client-info">
+          <span class="active-client-dot" id="activeClientDot"></span>
+          <span class="active-client-text" id="activeClientText">Chargement…</span>
+        </div>
+        <button class="secondary small" type="button" id="changeClientBtn">Changer</button>
+      </div>
+
       <header class="topbar">
         <div>
           <h1 id="topTitle">Vos agents en direct</h1>
@@ -42,7 +51,89 @@
         </div>
       </header>
 
-      <section class="view active" id="view-activite">
+      <section class="view active" id="view-clients">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Vos clients artisans</h2>
+              <p>Le hub de l'agence. Sélectionne le client actif : devis, factures et relances sont générés pour lui.</p>
+            </div>
+            <span class="state" id="clientsState">Prêt</span>
+          </div>
+
+          <div class="clients-toolbar">
+            <div class="clients-filter" id="clientsFilter">
+              <button class="chip active" type="button" data-status="">Tous</button>
+              <button class="chip" type="button" data-status="prospect">Prospect</button>
+              <button class="chip" type="button" data-status="onboarding">Onboarding</button>
+              <button class="chip" type="button" data-status="actif">Actif</button>
+              <button class="chip" type="button" data-status="pause">Pause</button>
+              <button class="chip" type="button" data-status="perdu">Perdu</button>
+            </div>
+          </div>
+
+          <div class="clients-grid" id="clientsGrid">
+            <div class="empty-state">Chargement des clients…</div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Nouveau client</h2>
+              <p>Ajoute un artisan. Le nom de l'entreprise suffit pour démarrer, le reste se complète ensuite.</p>
+            </div>
+            <span class="state" id="newClientState">Formulaire</span>
+          </div>
+
+          <form id="newClientForm" class="client-form">
+            <div class="form-grid">
+              <label>Nom entreprise *
+                <input name="company_name" type="text" placeholder="Plomberie Martin" required>
+              </label>
+              <label>Métier principal
+                <select name="main_trade">
+                  <option value="plomberie">Plomberie / salle de bain</option>
+                  <option value="electricite">Électricité</option>
+                  <option value="carrelage">Carrelage</option>
+                  <option value="menuiserie">Menuiserie</option>
+                  <option value="peinture">Peinture</option>
+                  <option value="renovation_generale">Rénovation générale</option>
+                </select>
+              </label>
+              <label>Offre
+                <select name="plan">
+                  <option value="fondation">Fondation — 199 €/mois</option>
+                  <option value="croissance">Croissance — 349 €/mois</option>
+                  <option value="pilotage">Intégral — 599 €/mois</option>
+                </select>
+              </label>
+              <label>Statut
+                <select name="status">
+                  <option value="prospect">Prospect</option>
+                  <option value="onboarding">Onboarding</option>
+                  <option value="actif">Actif</option>
+                  <option value="pause">Pause</option>
+                  <option value="perdu">Perdu</option>
+                </select>
+              </label>
+              <label>Contact <input name="contact_name" type="text" placeholder="Jean Martin"></label>
+              <label>Téléphone <input name="phone" type="text" placeholder="06 12 34 56 78"></label>
+              <label>Email <input name="email" type="email" placeholder="contact@plomberie-martin.fr"></label>
+              <label>Communes couvertes <input name="service_area" type="text" placeholder="Nantes, Rezé, Saint-Herblain"></label>
+            </div>
+            <label>Notes
+              <textarea name="notes" class="small-textarea" placeholder="Rencontré sur chantier, intéressé par les devis automatiques."></textarea>
+            </label>
+            <div class="actions">
+              <button class="primary" type="submit" id="createClientBtn">Ajouter le client</button>
+              <span id="newClientMessage">Prêt</span>
+            </div>
+          </form>
+        </section>
+      </section>
+
+      <section class="view" id="view-activite">
         <section class="panel">
           <div class="panel-head">
             <div>
