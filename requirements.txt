@@ -6,3 +6,5 @@ anthropic>=0.69
 requests>=2.31
 pyyaml>=6.0
 python-dotenv>=1.0
+# Génération des vrais PDF (devis, factures). Nécessite des libs système (voir Dockerfile).
+weasyprint>=62

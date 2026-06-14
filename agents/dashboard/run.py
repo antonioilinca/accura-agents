@@ -218,7 +218,7 @@ def _generate_quote(text: str, quote_id: str | None = None) -> dict:
         "json": f"/outputs/devis/{paths['json'].name}",
         "markdown": f"/outputs/devis/{paths['markdown'].name}",
         "html": f"/outputs/devis/{paths['html'].name}",
-        "pdf": f"/outputs/devis/{paths['html'].name}",
+        "pdf": f"/outputs/devis/{paths['pdf'].name}" if paths.get("pdf") else f"/outputs/devis/{paths['html'].name}",
     }
     return payload
 
@@ -236,7 +236,7 @@ def _generate_invoice(quote_id: str, invoice_type: str = "acompte") -> dict:
         "json": f"/outputs/factures/{paths['json'].name}",
         "markdown": f"/outputs/factures/{paths['markdown'].name}",
         "html": f"/outputs/factures/{paths['html'].name}",
-        "pdf": f"/outputs/factures/{paths['html'].name}",
+        "pdf": f"/outputs/factures/{paths['pdf'].name}" if paths.get("pdf") else f"/outputs/factures/{paths['html'].name}",
     }
     return payload
 
