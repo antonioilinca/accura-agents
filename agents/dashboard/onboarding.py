@@ -127,20 +127,32 @@ ALLOWED_LOGO_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 MAX_LOGO_BYTES = 2 * 1024 * 1024
 
 
-def profile_path(root: Path) -> Path:
-    return root / "outputs" / "onboarding" / "artisan_profile.json"
+def _profile_base(root: Path, base: Path | None) -> Path:
+    """Dossier de base du profil/assets d'un artisan.
+
+    - ``base=None`` (cas historique mono-artisan) : ``root/"outputs"``.
+    - ``base`` fourni (espace d'un client de l'agence) : ce dossier tel quel.
+
+    Les chemins ``onboarding/...`` sont ensuite ancrés sur ce dossier de base, ce
+    qui garde le comportement d'origine intact quand aucun client n'est ciblé.
+    """
+    return base if base is not None else root / "outputs"
 
 
-def onboarding_assets_dir(root: Path) -> Path:
-    return root / "outputs" / "onboarding" / "assets"
+def profile_path(root: Path, base: Path | None = None) -> Path:
+    return _profile_base(root, base) / "onboarding" / "artisan_profile.json"
+
+
+def onboarding_assets_dir(root: Path, base: Path | None = None) -> Path:
+    return _profile_base(root, base) / "onboarding" / "assets"
 
 
 def devis_config_path(root: Path) -> Path:
     return root / "config" / "devis.yaml"
 
 
-def load_profile(root: Path) -> dict[str, Any]:
-    path = profile_path(root)
+def load_profile(root: Path, base: Path | None = None) -> dict[str, Any]:
+    path = profile_path(root, base)
     if not path.exists():
         return with_plan_capabilities(DEFAULT_PROFILE)
     try:
@@ -150,10 +162,10 @@ def load_profile(root: Path) -> dict[str, Any]:
     return with_plan_capabilities(merge_profile(DEFAULT_PROFILE, data))
 
 
-def save_profile(root: Path, profile: dict[str, Any]) -> dict[str, Any]:
+def save_profile(root: Path, profile: dict[str, Any], base: Path | None = None) -> dict[str, Any]:
     cleaned = normalize_profile(merge_profile(DEFAULT_PROFILE, profile))
     cleaned = with_plan_capabilities(cleaned)
-    ecrire_json_atomique(profile_path(root), cleaned)
+    ecrire_json_atomique(profile_path(root, base), cleaned)
     return cleaned
 
 
@@ -190,7 +202,7 @@ def valider_profil_production(profile: dict[str, Any]) -> list[str]:
     return erreurs
 
 
-def save_logo_asset(root: Path, filename: str, content: bytes) -> dict[str, Any]:
+def save_logo_asset(root: Path, filename: str, content: bytes, base: Path | None = None) -> dict[str, Any]:
     if not content:
         raise ValueError("Logo vide")
     if len(content) > MAX_LOGO_BYTES:
@@ -202,7 +214,7 @@ def save_logo_asset(root: Path, filename: str, content: bytes) -> dict[str, Any]
     if not _looks_like_logo(content, ext):
         raise ValueError("Le fichier ne ressemble pas à une image valide")
 
-    folder = onboarding_assets_dir(root)
+    folder = onboarding_assets_dir(root, base)
     folder.mkdir(parents=True, exist_ok=True)
     for old_logo in folder.glob("logo.*"):
         old_logo.unlink()
@@ -216,14 +228,25 @@ def save_logo_asset(root: Path, filename: str, content: bytes) -> dict[str, Any]
     }
 
 
-def apply_profile_to_devis_config(root: Path, profile: dict[str, Any]) -> dict[str, str]:
-    profile = save_profile(root, profile)
+def client_devis_config_path(base: Path) -> Path:
+    """Config devis d'un client de l'agence, rangée DANS son espace de travail.
+
+    On ne touche pas au ``config/devis.yaml`` global (réservé au mode mono-artisan
+    historique) : chaque client a sa propre config isolée, ce qui évite qu'activer
+    un client n'écrase la configuration d'un autre.
+    """
+    return base / "devis.config.yaml"
+
+
+def apply_profile_to_devis_config(root: Path, profile: dict[str, Any], base: Path | None = None) -> dict[str, str]:
+    profile = save_profile(root, profile, base=base)
     erreurs = valider_profil_production(profile)
     if erreurs:
         raise ValueError(
             "Profil incomplet pour activer la configuration devis :\n- " + "\n- ".join(erreurs)
         )
-    target = devis_config_path(root)
+    # Mono-artisan : config/devis.yaml (inchangé). Client actif : config isolée dans son espace.
+    target = devis_config_path(root) if base is None else client_devis_config_path(base)
     target.parent.mkdir(parents=True, exist_ok=True)
 
     backup = ""
@@ -235,7 +258,7 @@ def apply_profile_to_devis_config(root: Path, profile: dict[str, Any]) -> dict[s
 
     yaml_payload = build_devis_yaml(profile)
     target.write_text(yaml.safe_dump(yaml_payload, allow_unicode=True, sort_keys=False), encoding="utf-8")
-    return {"profile": str(profile_path(root)), "devis_config": str(target), "backup": backup}
+    return {"profile": str(profile_path(root, base)), "devis_config": str(target), "backup": backup}
 
 
 def build_devis_yaml(profile: dict[str, Any]) -> dict[str, Any]:

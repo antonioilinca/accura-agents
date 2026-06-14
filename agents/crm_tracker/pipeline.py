@@ -29,27 +29,48 @@ DEFAULT_NEXT_ACTIONS = {
 }
 
 
-def crm_path(root: Path) -> Path:
-    return root / "outputs" / "crm" / "pipeline.json"
+def _workspace(root: Path, base: Path | None) -> Path:
+    """Espace de travail CRM : ``base`` si fourni (client de l'agence), sinon
+    ``root/"outputs"`` (mode mono-artisan historique, comportement inchangé)."""
+    return base if base is not None else root / "outputs"
 
 
-def load_state(root: Path) -> dict[str, dict[str, Any]]:
-    return lire_json(crm_path(root), {})
+def _devis_url_prefix(root: Path, base: Path | None) -> str:
+    """Préfixe d'URL des devis servis (/outputs/.../devis) pour les liens CRM.
+
+    Mono-artisan : ``/outputs/devis``. Client actif : ``/outputs/clients/<slug>/devis``,
+    calculé depuis le chemin du workspace relatif à la racine du projet.
+    """
+    if base is None:
+        return "/outputs/devis"
+    try:
+        return "/" + (base.resolve().relative_to(root.resolve()) / "devis").as_posix()
+    except ValueError:
+        return "/outputs/devis"
 
 
-def save_state(root: Path, state: dict[str, dict[str, Any]]) -> None:
-    ecrire_json_atomique(crm_path(root), state)
+def crm_path(root: Path, base: Path | None = None) -> Path:
+    return _workspace(root, base) / "crm" / "pipeline.json"
 
 
-def build_pipeline(root: Path, limit: int = 50) -> dict[str, Any]:
-    state = load_state(root)
+def load_state(root: Path, base: Path | None = None) -> dict[str, dict[str, Any]]:
+    return lire_json(crm_path(root, base), {})
+
+
+def save_state(root: Path, state: dict[str, dict[str, Any]], base: Path | None = None) -> None:
+    ecrire_json_atomique(crm_path(root, base), state)
+
+
+def build_pipeline(root: Path, limit: int = 50, base: Path | None = None) -> dict[str, Any]:
+    state = load_state(root, base)
+    url_prefix = _devis_url_prefix(root, base)
     items = []
-    for path in _quote_files(root):
+    for path in _quote_files(root, base):
         try:
             quote = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             continue
-        item = quote_to_crm_item(quote, state.get(str(quote.get("id_devis", "")), {}))
+        item = quote_to_crm_item(quote, state.get(str(quote.get("id_devis", "")), {}), url_prefix=url_prefix)
         if item:
             items.append(item)
         if len(items) >= limit:
@@ -65,19 +86,19 @@ def build_pipeline(root: Path, limit: int = 50) -> dict[str, Any]:
     }
 
 
-def update_item(root: Path, quote_id: str, status: str, next_action: str = "") -> dict[str, Any]:
+def update_item(root: Path, quote_id: str, status: str, next_action: str = "", base: Path | None = None) -> dict[str, Any]:
     quote_id = str(quote_id or "").strip()
     if not quote_id:
         raise ValueError("Devis manquant")
     if status not in STATUSES:
         raise ValueError("Statut CRM invalide")
-    if not _quote_exists(root, quote_id):
+    if not _quote_exists(root, quote_id, base):
         raise ValueError(f"Devis inconnu : {quote_id} (aucun fichier correspondant dans outputs/devis)")
 
     # Le cycle lecture → modification → écriture est verrouillé : deux mises à jour
     # simultanées (dashboard multi-onglets, CLI en parallèle) ne se perdent plus.
-    with verrou_fichier(crm_path(root)):
-        state = load_state(root)
+    with verrou_fichier(crm_path(root, base)):
+        state = load_state(root, base)
         statut_actuel = str((state.get(quote_id) or {}).get("status") or "")
         if statut_actuel in STATUTS_TERMINAUX and status != statut_actuel:
             raise ValueError(
@@ -89,16 +110,16 @@ def update_item(root: Path, quote_id: str, status: str, next_action: str = "") -
             "next_action": str(next_action or DEFAULT_NEXT_ACTIONS[status]).strip(),
             "updated_at": date.today().isoformat(),
         }
-        save_state(root, state)
+        save_state(root, state, base)
     return state[quote_id]
 
 
-def _quote_exists(root: Path, quote_id: str) -> bool:
-    direct = root / "outputs" / "devis" / f"{_file_stem(quote_id)}.json"
+def _quote_exists(root: Path, quote_id: str, base: Path | None = None) -> bool:
+    direct = _workspace(root, base) / "devis" / f"{_file_stem(quote_id)}.json"
     if direct.exists():
         return True
     expected = quote_id.lower()
-    for path in _quote_files(root):
+    for path in _quote_files(root, base):
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
@@ -108,7 +129,11 @@ def _quote_exists(root: Path, quote_id: str) -> bool:
     return False
 
 
-def quote_to_crm_item(quote: dict[str, Any], state: dict[str, Any]) -> dict[str, Any] | None:
+def quote_to_crm_item(
+    quote: dict[str, Any],
+    state: dict[str, Any],
+    url_prefix: str = "/outputs/devis",
+) -> dict[str, Any] | None:
     quote_id = str(quote.get("id_devis", "")).strip()
     if not quote_id:
         return None
@@ -128,13 +153,13 @@ def quote_to_crm_item(quote: dict[str, Any], state: dict[str, Any]) -> dict[str,
         "status_label": STATUSES[status],
         "next_action": str(state.get("next_action") or DEFAULT_NEXT_ACTIONS[status]),
         "updated_at": state.get("updated_at", ""),
-        "html": f"/outputs/devis/{_file_stem(quote_id)}.html",
-        "json": f"/outputs/devis/{_file_stem(quote_id)}.json",
+        "html": f"{url_prefix}/{_file_stem(quote_id)}.html",
+        "json": f"{url_prefix}/{_file_stem(quote_id)}.json",
     }
 
 
-def _quote_files(root: Path) -> list[Path]:
-    folder = root / "outputs" / "devis"
+def _quote_files(root: Path, base: Path | None = None) -> list[Path]:
+    folder = _workspace(root, base) / "devis"
     if not folder.exists():
         return []
     return sorted(folder.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)

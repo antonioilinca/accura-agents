@@ -30,10 +30,48 @@ from agents.facture_generator.render import ecrire_exports as ecrire_exports_fac
 from agents.relance_generator.generator import generer_relances_depuis_devis
 from agents.relance_generator.render import ecrire_exports as ecrire_exports_relance
 from agents.dashboard.onboarding import PLANS, apply_profile_to_devis_config, load_profile, save_logo_asset, save_profile
-from agents.dashboard import activity, cockpit
+from agents.dashboard import activity, clients, cockpit
 
 RACINE = Path(__file__).resolve().parents[2]
 STATIC = Path(__file__).resolve().parent / "static"
+
+
+def _workspace() -> Path:
+    """Dossier de travail courant : espace du client actif, sinon RACINE/outputs.
+
+    Tant qu'aucun client n'est sélectionné, ``clients.active_workspace`` renvoie
+    ``RACINE/"outputs"`` : toutes les sorties retombent à l'identique sur le
+    comportement mono-artisan d'origine (rétrocompatibilité garantie). RACINE est
+    lue dynamiquement (les tests la patchent via patch.object).
+    """
+    return clients.active_workspace(RACINE)
+
+
+def _profile_base() -> Path | None:
+    """Base onboarding : workspace du client actif, sinon None (profil mono-artisan)."""
+    return _workspace() if clients.get_active(RACINE) else None
+
+
+def _active_client_payload() -> dict | None:
+    """Fiche du client actif (ou None) pour le front : sert à afficher « Client actif »."""
+    slug = clients.get_active(RACINE)
+    if not slug:
+        return None
+    return clients.get_client(RACINE, slug)
+
+
+def _url_for(chemin: Path) -> str:
+    """Transforme un chemin de fichier sous RACINE en URL servie (/outputs/...).
+
+    Un fichier dans ``outputs/clients/<slug>/devis/x.pdf`` devient
+    ``/outputs/clients/<slug>/devis/x.pdf`` : l'URL reste sous /outputs/ et passe
+    donc par ``_safe_output_path``. Si le chemin sort de RACINE (ne devrait pas
+    arriver), on retombe sur l'ancien préfixe pour ne jamais casser un lien.
+    """
+    try:
+        return "/" + chemin.resolve().relative_to(RACINE.resolve()).as_posix()
+    except ValueError:
+        return "/outputs/" + chemin.name
 
 
 def _dashboard_password() -> str | None:
@@ -47,6 +85,13 @@ def _dashboard_user() -> str:
 
 
 def _config_devis() -> Path:
+    # Client actif avec sa propre config devis (générée via l'onboarding du client).
+    base = _profile_base()
+    if base is not None:
+        client_cfg = base / "devis.config.yaml"
+        if client_cfg.exists():
+            return client_cfg
+    # Mode mono-artisan historique : config locale puis exemple versionné.
     locale = RACINE / "config" / "devis.yaml"
     if locale.exists():
         return locale
@@ -93,7 +138,7 @@ def _examples() -> list[dict]:
 
 
 def _recent_quotes(limit: int = 8) -> list[dict]:
-    dossier = RACINE / "outputs" / "devis"
+    dossier = _workspace() / "devis"
     if not dossier.exists():
         return []
     quotes = []
@@ -112,9 +157,9 @@ def _recent_quotes(limit: int = 8) -> list[dict]:
             "ville": demande.get("ville") or "à préciser",
             "total_ttc": totaux.get("total_ttc", 0),
             "questions": len(demande.get("questions", []) or []),
-            "html": f"/outputs/devis/{chemin.with_suffix('.html').name}",
-            "json": f"/outputs/devis/{chemin.name}",
-            "markdown": f"/outputs/devis/{chemin.with_suffix('.md').name}",
+            "html": _url_for(chemin.with_suffix(".html")),
+            "json": _url_for(chemin),
+            "markdown": _url_for(chemin.with_suffix(".md")),
         })
         if len(quotes) >= limit:
             break
@@ -122,7 +167,7 @@ def _recent_quotes(limit: int = 8) -> list[dict]:
 
 
 def _quote_json_path(quote_id: str) -> Path | None:
-    dossier = RACINE / "outputs" / "devis"
+    dossier = _workspace() / "devis"
     if not dossier.exists():
         return None
     expected = quote_id.lower()
@@ -137,7 +182,7 @@ def _quote_json_path(quote_id: str) -> Path | None:
 
 
 def _recent_invoices(limit: int = 8) -> list[dict]:
-    dossier = RACINE / "outputs" / "factures"
+    dossier = _workspace() / "factures"
     if not dossier.exists():
         return []
     invoices = []
@@ -154,9 +199,9 @@ def _recent_invoices(limit: int = 8) -> list[dict]:
             "type": data.get("type_facture", ""),
             "client": data.get("client_nom", ""),
             "total_ttc": totaux.get("total_ttc", 0),
-            "html": f"/outputs/factures/{chemin.with_suffix('.html').name}",
-            "json": f"/outputs/factures/{chemin.name}",
-            "markdown": f"/outputs/factures/{chemin.with_suffix('.md').name}",
+            "html": _url_for(chemin.with_suffix(".html")),
+            "json": _url_for(chemin),
+            "markdown": _url_for(chemin.with_suffix(".md")),
         })
         if len(invoices) >= limit:
             break
@@ -164,7 +209,7 @@ def _recent_invoices(limit: int = 8) -> list[dict]:
 
 
 def _recent_followups(limit: int = 8) -> list[dict]:
-    dossier = RACINE / "outputs" / "relances"
+    dossier = _workspace() / "relances"
     if not dossier.exists():
         return []
     plans = []
@@ -180,7 +225,7 @@ def _recent_followups(limit: int = 8) -> list[dict]:
             "chantier": data.get("chantier", ""),
             "messages_count": len(messages),
             "next_date": messages[0].get("date_prevue", "") if messages else "",
-            "json": f"/outputs/relances/{chemin.name}",
+            "json": _url_for(chemin),
         })
         if len(plans) >= limit:
             break
@@ -189,7 +234,7 @@ def _recent_followups(limit: int = 8) -> list[dict]:
 
 def _recent_leads(limit: int = 8) -> list[dict]:
     leads = []
-    for chemin in sorted((RACINE / "outputs").glob("leads-*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
+    for chemin in sorted(_workspace().glob("leads-*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
         try:
             data = json.loads(chemin.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
@@ -209,17 +254,13 @@ def _recent_leads(limit: int = 8) -> list[dict]:
 
 def _generate_quote(text: str, quote_id: str | None = None) -> dict:
     cfg = charger_config(_config_devis())
-    dossier = RACINE / cfg.dossier_sortie
+    # Sortie recontextualisée : espace du client actif, sinon outputs/devis (rétrocompat).
+    dossier = _workspace() / "devis"
     doc = generer_devis(text, cfg, id_devis=quote_id, dossier=dossier)
     # Un id saisi par l'artisan est une ré-édition volontaire du même devis.
     paths = ecrire_exports(doc, dossier, ecraser=bool(quote_id))
     payload = doc.to_dict()
-    payload["exports"] = {
-        "json": f"/outputs/devis/{paths['json'].name}",
-        "markdown": f"/outputs/devis/{paths['markdown'].name}",
-        "html": f"/outputs/devis/{paths['html'].name}",
-        "pdf": f"/outputs/devis/{paths['pdf'].name}" if paths.get("pdf") else f"/outputs/devis/{paths['html'].name}",
-    }
+    payload["exports"] = _exports_for(paths)
     return payload
 
 
@@ -228,16 +269,11 @@ def _generate_invoice(quote_id: str, invoice_type: str = "acompte") -> dict:
     if not chemin:
         raise FileNotFoundError(f"Devis introuvable : {quote_id}")
     devis = json.loads(chemin.read_text(encoding="utf-8"))
-    dossier = RACINE / "outputs" / "factures"
+    dossier = _workspace() / "factures"
     doc = generer_facture_depuis_devis(devis, type_facture=invoice_type, dossier=dossier)
     paths = ecrire_exports_facture(doc, dossier)
     payload = doc.to_dict()
-    payload["exports"] = {
-        "json": f"/outputs/factures/{paths['json'].name}",
-        "markdown": f"/outputs/factures/{paths['markdown'].name}",
-        "html": f"/outputs/factures/{paths['html'].name}",
-        "pdf": f"/outputs/factures/{paths['pdf'].name}" if paths.get("pdf") else f"/outputs/factures/{paths['html'].name}",
-    }
+    payload["exports"] = _exports_for(paths)
     return payload
 
 
@@ -247,27 +283,39 @@ def _generate_followups(quote_id: str) -> dict:
         raise FileNotFoundError(f"Devis introuvable : {quote_id}")
     devis = json.loads(chemin.read_text(encoding="utf-8"))
     plan = generer_relances_depuis_devis(devis)
-    paths = ecrire_exports_relance(plan, RACINE / "outputs" / "relances")
+    paths = ecrire_exports_relance(plan, _workspace() / "relances")
     payload = plan.to_dict()
-    payload["exports"] = {"json": f"/outputs/relances/{paths['json'].name}"}
+    payload["exports"] = {"json": _url_for(paths["json"])}
     return payload
 
 
 def _crm_pipeline() -> dict:
-    return build_pipeline(RACINE)
+    # Le CRM ancre lui-même sur "outputs" : on lui passe RACINE + la base client
+    # éventuelle (et non _workspace(), pour ne pas doubler le segment outputs).
+    return build_pipeline(RACINE, base=_profile_base())
 
 
 def _update_crm(quote_id: str, status: str, next_action: str = "") -> dict:
-    update_item(RACINE, quote_id, status, next_action)
+    update_item(RACINE, quote_id, status, next_action, base=_profile_base())
     return _crm_pipeline()
 
 
 def _generate_review_request(client: str = "", chantier: str = "") -> dict:
-    request = generer_demande_avis(load_profile(RACINE), client=client, chantier=chantier)
-    paths = ecrire_exports_avis(request, RACINE / "outputs" / "avis")
+    request = generer_demande_avis(load_profile(RACINE, base=_profile_base()), client=client, chantier=chantier)
+    paths = ecrire_exports_avis(request, _workspace() / "avis")
     payload = request.to_dict()
-    payload["exports"] = {"json": f"/outputs/avis/{paths['json'].name}"}
+    payload["exports"] = {"json": _url_for(paths["json"])}
     return payload
+
+
+def _exports_for(paths: dict) -> dict:
+    """Exports (URLs) d'un document généré : json, markdown, html, pdf (fallback html)."""
+    return {
+        "json": _url_for(paths["json"]),
+        "markdown": _url_for(paths["markdown"]),
+        "html": _url_for(paths["html"]),
+        "pdf": _url_for(paths["pdf"]) if paths.get("pdf") else _url_for(paths["html"]),
+    }
 
 
 def _extract_multipart_file(headers, body: bytes, field_name: str) -> tuple[str, bytes]:
@@ -343,14 +391,19 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "recent_followups": _recent_followups(),
                 "recent_leads": _recent_leads(),
                 "crm": _crm_pipeline(),
-                "onboarding": load_profile(RACINE),
+                "onboarding": load_profile(RACINE, base=_profile_base()),
                 "plans": PLANS,
                 "agents": cockpit.catalog_public(),
                 "activity": {"agents": activity.agent_states(), "runs": activity.snapshot()},
+                "clients": clients.list_clients(RACINE),
+                "active_client": _active_client_payload(),
             })
             return
         if self.path == "/api/onboarding":
-            _json_response(self, {"profile": load_profile(RACINE), "plans": PLANS})
+            _json_response(self, {"profile": load_profile(RACINE, base=_profile_base()), "plans": PLANS})
+            return
+        if self.path == "/api/clients":
+            _json_response(self, {"clients": clients.list_clients(RACINE), "active": clients.get_active(RACINE)})
             return
         if self.path == "/api/agents/activity":
             _json_response(self, {"agents": activity.agent_states(), "runs": activity.snapshot()})
@@ -395,6 +448,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
             return
         if self.path == "/api/onboarding/logo":
             self._handle_logo_upload()
+            return
+        if self.path == "/api/clients":
+            self._handle_create_client()
+            return
+        if self.path == "/api/clients/active":
+            self._handle_set_active_client()
+            return
+        if self.path == "/api/clients/status":
+            self._handle_client_status()
             return
         if self.path == "/api/agents/run":
             self._handle_agent_run()
@@ -477,10 +539,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
         try:
             data = json.loads(self.rfile.read(length).decode("utf-8"))
             profile = data.get("profile") or data
-            saved = save_profile(RACINE, profile)
-            result = {"profile": saved, "paths": {"profile": str((RACINE / "outputs" / "onboarding" / "artisan_profile.json"))}}
+            # Onboarding du client actif ciblé dans son espace, sinon profil mono-artisan.
+            base = _profile_base()
+            from agents.dashboard.onboarding import profile_path  # chemin exact (mono ou client)
+            saved = save_profile(RACINE, profile, base=base)
+            result = {"profile": saved, "paths": {"profile": str(profile_path(RACINE, base))}}
             if apply_config:
-                result["paths"] = apply_profile_to_devis_config(RACINE, saved)
+                result["paths"] = apply_profile_to_devis_config(RACINE, saved, base=base)
             _json_response(self, result)
         except Exception as exc:
             _json_response(self, {"error": str(exc)}, status=500)
@@ -488,14 +553,66 @@ class DashboardHandler(BaseHTTPRequestHandler):
     def _handle_logo_upload(self) -> None:
         length = int(self.headers.get("Content-Length", "0") or "0")
         try:
+            base = _profile_base()
             filename, content = _extract_multipart_file(self.headers, self.rfile.read(length), "logo")
-            logo = save_logo_asset(RACINE, filename, content)
-            profile = load_profile(RACINE)
+            logo = save_logo_asset(RACINE, filename, content, base=base)
+            profile = load_profile(RACINE, base=base)
             profile["assets"] = {**(profile.get("assets") or {}), **logo}
-            saved = save_profile(RACINE, profile)
+            saved = save_profile(RACINE, profile, base=base)
             _json_response(self, {"profile": saved, "logo": logo})
         except Exception as exc:
             _json_response(self, {"error": str(exc)}, status=400)
+
+    def _handle_create_client(self) -> None:
+        length = int(self.headers.get("Content-Length", "0") or "0")
+        try:
+            data = json.loads(self.rfile.read(length).decode("utf-8"))
+        except (json.JSONDecodeError, ValueError):
+            _json_response(self, {"error": "Corps JSON invalide"}, status=400)
+            return
+        try:
+            fiche = clients.create_client(RACINE, data if isinstance(data, dict) else {})
+            _json_response(self, {"client": fiche}, status=201)
+        except ValueError as exc:  # nom manquant, etc. → faute du client
+            _json_response(self, {"error": str(exc)}, status=400)
+        except Exception as exc:
+            _json_response(self, {"error": str(exc)}, status=500)
+
+    def _handle_set_active_client(self) -> None:
+        length = int(self.headers.get("Content-Length", "0") or "0")
+        try:
+            data = json.loads(self.rfile.read(length).decode("utf-8"))
+        except (json.JSONDecodeError, ValueError):
+            _json_response(self, {"error": "Corps JSON invalide"}, status=400)
+            return
+        try:
+            slug = (data or {}).get("slug")  # {slug: null} ou absent => aucun client actif
+            active = clients.set_active(RACINE, slug)
+            _json_response(self, {"active": active})
+        except ValueError as exc:  # client introuvable
+            _json_response(self, {"error": str(exc)}, status=400)
+        except Exception as exc:
+            _json_response(self, {"error": str(exc)}, status=500)
+
+    def _handle_client_status(self) -> None:
+        length = int(self.headers.get("Content-Length", "0") or "0")
+        try:
+            data = json.loads(self.rfile.read(length).decode("utf-8"))
+        except (json.JSONDecodeError, ValueError):
+            _json_response(self, {"error": "Corps JSON invalide"}, status=400)
+            return
+        try:
+            slug = str((data or {}).get("slug") or "").strip()
+            status = str((data or {}).get("status") or "").strip()
+            if not slug:
+                _json_response(self, {"error": "Client manquant"}, status=400)
+                return
+            fiche = clients.update_client(RACINE, slug, {"status": status})
+            _json_response(self, {"client": fiche})
+        except ValueError as exc:  # statut invalide ou client introuvable
+            _json_response(self, {"error": str(exc)}, status=400)
+        except Exception as exc:
+            _json_response(self, {"error": str(exc)}, status=500)
 
     def log_message(self, format: str, *args) -> None:  # noqa: A002
         print(f"[dashboard] {self.address_string()} - {format % args}")
