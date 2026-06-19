@@ -66,8 +66,17 @@ Règles non négociables :
 def creer_client_llm_si_disponible(cfg: QuoteConfig) -> tuple[StructuredClient | None, str | None]:
     """Retourne un client LLM seulement si la config et les clés sont prêtes.
 
-    Mode `auto` : OpenAI si `OPENAI_API_KEY` existe, sinon Anthropic si
-    `ANTHROPIC_API_KEY` existe. Sans clé, l'agent reste en mode local.
+    Mode `auto` (par ordre de priorité) :
+    1. OpenAI si `OPENAI_API_KEY` existe (qualité maximale, payant) ;
+    2. sinon Anthropic si `ANTHROPIC_API_KEY` existe (qualité maximale, payant) ;
+    3. sinon Groq si `GROQ_API_KEY` existe (gratuit, finition correcte — même
+       fournisseur que l'agent leads, pour que la démo Fondation soit déjà soignée
+       sans clé payante) ;
+    4. sinon aucune clé : l'agent reste en mode local (devis généré sans IA).
+
+    Ajouter une clé OpenAI/Anthropic suffit donc à reprendre la qualité maximale,
+    sans rien éditer d'autre. Dans tous les cas, l'IA ne touche jamais aux prix,
+    quantités, TVA ni totaux (garde-fous dans `_appliquer_finition_validee`).
     """
     llm = cfg.llm
     if not llm.actif or llm.provider == "off":
@@ -89,6 +98,11 @@ def creer_client_llm_si_disponible(cfg: QuoteConfig) -> tuple[StructuredClient |
             base_url = ""
             api_key_env = "ANTHROPIC_API_KEY"
             modele = llm.modele_anthropic
+        elif os.environ.get("GROQ_API_KEY"):
+            provider = "openai_compat"
+            base_url = "https://api.groq.com/openai/v1"
+            api_key_env = "GROQ_API_KEY"
+            modele = llm.modele_groq
         else:
             return None, None
     elif api_key_env and not os.environ.get(api_key_env):

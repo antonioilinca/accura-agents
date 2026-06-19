@@ -12,6 +12,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from agents.common.native_libs import assurer_libs_pdf
+
 from .config import charger_config
 from .generator import generer_devis
 from .render import ecrire_exports, rendre_markdown
@@ -27,6 +29,7 @@ def _config_par_defaut() -> Path:
 
 
 def main() -> None:
+    assurer_libs_pdf()  # PDF natif en local (macOS) ; no-op en prod Docker
     load_dotenv(RACINE / ".env")
     parser = argparse.ArgumentParser(description="Agent Devis Accura — demande brute -> devis")
     parser.add_argument("--config", default=str(_config_par_defaut()), help="chemin du devis.yaml")

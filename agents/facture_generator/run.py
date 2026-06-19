@@ -9,6 +9,8 @@ import argparse
 import sys
 from pathlib import Path
 
+from agents.common.native_libs import assurer_libs_pdf
+
 from .generator import charger_devis_json, generer_facture_depuis_devis
 from .render import ecrire_exports, rendre_markdown
 
@@ -16,6 +18,7 @@ RACINE = Path(__file__).resolve().parents[2]
 
 
 def main() -> None:
+    assurer_libs_pdf()  # PDF natif en local (macOS) ; no-op en prod Docker
     parser = argparse.ArgumentParser(description="Agent Factures Accura — devis validé -> facture")
     parser.add_argument("--quote", required=True, help="chemin du JSON devis source")
     parser.add_argument("--type", choices=["acompte", "solde"], default="acompte", help="type de facture")

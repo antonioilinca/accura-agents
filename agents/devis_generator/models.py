@@ -50,6 +50,7 @@ class LLMQuoteConfig:
     api_key_env: str = "OPENAI_API_KEY"
     modele: str = "gpt-4o-mini"
     modele_anthropic: str = "claude-sonnet-4-6"
+    modele_groq: str = "llama-3.3-70b-versatile"
     max_tokens: int = 1600
     max_retry_after_seconds: int = 60
 

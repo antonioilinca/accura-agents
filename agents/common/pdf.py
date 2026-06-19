@@ -3,6 +3,12 @@
 Un seul point d'appel, dépendance optionnelle : si weasyprint (ou ses libs
 système) n'est pas disponible, on renvoie None et l'appelant garde le HTML
 imprimable comme secours (bouton « Imprimer »). Aucun crash possible côté agent.
+
+En production (image Docker Hugging Face / Render), les libs système de weasyprint
+sont installées par le Dockerfile : le PDF natif fonctionne. En local sur macOS, le
+chemin des libs Homebrew est réglé au démarrage par `agents.common.native_libs`
+(re-exec une fois avec DYLD_FALLBACK_LIBRARY_PATH). Si rien de tout cela n'aboutit,
+on retombe simplement sur le HTML imprimable.
 """
 
 from __future__ import annotations

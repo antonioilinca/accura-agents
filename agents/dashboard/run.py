@@ -19,6 +19,7 @@ from urllib.parse import unquote
 
 from dotenv import load_dotenv
 
+from agents.common.native_libs import assurer_libs_pdf
 from agents.avis_generator.generator import generer_demande_avis
 from agents.avis_generator.render import ecrire_exports as ecrire_exports_avis
 from agents.crm_tracker.pipeline import build_pipeline, update_item
@@ -619,6 +620,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
+    assurer_libs_pdf()  # PDF natif en local (macOS) ; no-op en prod Docker
     load_dotenv(RACINE / ".env")
     parser = argparse.ArgumentParser(description="Dashboard local Accura Ouest")
     parser.add_argument("--host", default="127.0.0.1")

@@ -73,6 +73,7 @@ def charger_config(chemin_config: str | Path) -> QuoteConfig:
         api_key_env=str(llm_data.get("api_key_env", "OPENAI_API_KEY")),
         modele=str(llm_data.get("modele", "gpt-4o-mini")),
         modele_anthropic=str(llm_data.get("modele_anthropic", "claude-sonnet-4-6")),
+        modele_groq=str(llm_data.get("modele_groq", "llama-3.3-70b-versatile")),
         max_tokens=int(llm_data.get("max_tokens", 1600)),
         max_retry_after_seconds=int(llm_data.get("max_retry_after_seconds", 60)),
     )

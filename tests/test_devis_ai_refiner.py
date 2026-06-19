@@ -83,16 +83,24 @@ class DevisAIRefinerTest(unittest.TestCase):
     def test_client_ia_auto_se_prepare_quand_cle_openai_presente(self) -> None:
         cfg = charger_config(ROOT / "config" / "devis.example.yaml")
 
-        with patch.dict("os.environ", {"OPENAI_API_KEY": "", "ANTHROPIC_API_KEY": ""}):
+        with patch.dict("os.environ", {"OPENAI_API_KEY": "", "ANTHROPIC_API_KEY": "", "GROQ_API_KEY": ""}):
             client, modele = creer_client_llm_si_disponible(cfg)
             self.assertIsNone(client)
             self.assertIsNone(modele)
 
-        with patch.dict("os.environ", {"OPENAI_API_KEY": "sk-test", "ANTHROPIC_API_KEY": ""}):
+        with patch.dict("os.environ", {"OPENAI_API_KEY": "sk-test", "ANTHROPIC_API_KEY": "", "GROQ_API_KEY": ""}):
             client, modele = creer_client_llm_si_disponible(cfg)
             self.assertIsNotNone(client)
             self.assertEqual(getattr(client, "provider"), "openai_compat")
             self.assertEqual(modele, cfg.llm.modele)
+
+        # Fallback gratuit : Groq seul suffit à activer la finition IA (démo Fondation
+        # soignée sans clé payante). OpenAI/Anthropic restent prioritaires s'ils existent.
+        with patch.dict("os.environ", {"OPENAI_API_KEY": "", "ANTHROPIC_API_KEY": "", "GROQ_API_KEY": "gsk-test"}):
+            client, modele = creer_client_llm_si_disponible(cfg)
+            self.assertIsNotNone(client)
+            self.assertEqual(getattr(client, "provider"), "openai_compat")
+            self.assertEqual(modele, cfg.llm.modele_groq)
 
 
 if __name__ == "__main__":
