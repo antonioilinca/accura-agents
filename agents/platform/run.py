@@ -28,6 +28,7 @@ from agents.common.native_libs import assurer_libs_pdf
 from . import api, auth
 
 RACINE = Path(__file__).resolve().parents[2]
+STATIC = Path(__file__).resolve().parent / "static"
 
 _DOC_RE = re.compile(r"^/api/v1/documents/([a-z]+)/([A-Za-z0-9._-]+)$")
 
@@ -91,6 +92,18 @@ class PlatformHandler(BaseHTTPRequestHandler):
             path = self.path.split("?", 1)[0]
             if path == "/api/v1/health" or path == "/healthz":
                 self._send_json({"ok": True, "service": "accura-platform"})
+                return
+
+            # Page de démonstration de l'espace artisan (publique ; les données restent
+            # protégées par jeton derrière l'API). Sert de modèle d'UI à relier au site.
+            if path in ("/", "/espace", "/espace/"):
+                page = (STATIC / "espace.html").read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(page)))
+                self._cors()
+                self.end_headers()
+                self.wfile.write(page)
                 return
 
             doc = _DOC_RE.match(path)

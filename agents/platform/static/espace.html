@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Espace artisan — Accura Ouest</title>
+<style>
+  *{box-sizing:border-box}
+  :root{
+    --blue:#1d4ed8;--blue2:#3b82f6;--ink:#0f172a;--muted:#64748b;
+    --line:#e6ebf2;--bg:#eef2f6;--card:#fff;--soft:#f8fafc;--ok:#15803d;--lock:#94a3b8;
+  }
+  html,body{margin:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);background:var(--bg);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  a{color:inherit}
+  .hidden{display:none!important}
+
+  /* ---------- Connexion ---------- */
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .login-card{width:100%;max-width:400px;background:var(--card);border:1px solid var(--line);
+    border-radius:16px;box-shadow:0 18px 50px rgba(15,23,42,.10);overflow:hidden}
+  .accent-bar{height:6px;background:linear-gradient(90deg,var(--blue),var(--blue2))}
+  .login-inner{padding:34px 30px}
+  .wordmark{font-weight:800;letter-spacing:-.01em;font-size:19px;display:flex;align-items:center;gap:9px}
+  .logo-dot{width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,var(--blue),var(--blue2));
+    display:inline-block;flex:0 0 auto}
+  .login-sub{color:var(--muted);margin:14px 0 22px;font-size:14px}
+  label{display:block;font-size:12.5px;font-weight:700;color:#334155;margin:14px 0 6px}
+  input{width:100%;padding:12px 13px;border:1px solid #cdd6e3;border-radius:10px;font-size:15px;
+    color:var(--ink);background:#fff;outline:none}
+  input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.12)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--blue);
+    color:#fff;font-weight:700;font-size:15px;padding:12px 18px;border-radius:10px;border:0;cursor:pointer;
+    text-decoration:none}
+  .btn:hover{background:#1a44bd}
+  .btn.full{width:100%;margin-top:22px}
+  .btn.ghost{background:#fff;color:var(--ink);border:1px solid #cdd6e3}
+  .btn.ghost:hover{background:#f8fafc}
+  .btn.sm{padding:8px 13px;font-size:13.5px;border-radius:8px}
+  .msg{margin-top:14px;font-size:13.5px;padding:10px 12px;border-radius:8px;display:none}
+  .msg.err{display:block;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c}
+  .hint{margin-top:18px;font-size:12px;color:var(--muted);text-align:center;line-height:1.5}
+
+  /* ---------- Espace ---------- */
+  .topbar{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--line)}
+  .topbar-in{max-width:1080px;margin:0 auto;padding:14px 22px;display:flex;align-items:center;justify-content:space-between;gap:14px}
+  .top-right{display:flex;align-items:center;gap:14px;min-width:0}
+  .who{text-align:right;min-width:0}
+  .who .co{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw}
+  .badge{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;
+    color:var(--blue);background:#eef3ff;border:1px solid #dbe5ff;padding:3px 9px;border-radius:999px;margin-top:2px}
+  .logout{color:var(--muted);font-size:13px;text-decoration:none;white-space:nowrap}
+  .logout:hover{color:var(--ink)}
+  main{max-width:1080px;margin:0 auto;padding:26px 22px 60px}
+  h1{font-size:24px;letter-spacing:-.01em;margin:6px 0 4px}
+  .lead{color:var(--muted);margin:0 0 24px}
+  .section-title{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
+    font-weight:800;margin:30px 0 12px}
+
+  .agents{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .agent{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;
+    display:flex;flex-direction:column;gap:10px;min-height:132px}
+  .agent .ico{width:42px;height:42px;border-radius:11px;background:linear-gradient(135deg,var(--blue),var(--blue2));
+    display:flex;align-items:center;justify-content:center;color:#fff}
+  .agent h3{margin:0;font-size:15.5px}
+  .agent p{margin:0;color:var(--muted);font-size:13px;line-height:1.45}
+  .agent.locked{background:#f6f8fb;border-style:dashed}
+  .agent.locked .ico{background:#e2e8f0;color:var(--lock)}
+  .agent.locked h3{color:#64748b}
+  .lock-tag{margin-top:auto;font-size:11.5px;font-weight:700;color:#b45309;background:#fffbeb;
+    border:1px solid #fde68a;padding:4px 8px;border-radius:7px;align-self:flex-start}
+  .ok-tag{margin-top:auto;font-size:11.5px;font-weight:700;color:var(--ok);align-self:flex-start;
+    display:inline-flex;align-items:center;gap:5px}
+
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin-top:14px}
+  .panel h2{margin:0 0 4px;font-size:17px}
+  .panel .sub{color:var(--muted);font-size:13.5px;margin:0 0 14px}
+  textarea{width:100%;min-height:96px;padding:13px;border:1px solid #cdd6e3;border-radius:10px;font:inherit;
+    resize:vertical;outline:none}
+  textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.12)}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+  .result{margin-top:14px;border:1px solid #dbe5ff;background:#f5f8ff;border-radius:10px;padding:14px 16px;display:none}
+  .result.show{display:block}
+  .result .amount{font-size:22px;font-weight:800;color:var(--blue)}
+
+  .list{display:flex;flex-direction:column;gap:10px}
+  .item{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line);
+    border-radius:11px;padding:13px 15px;background:#fff}
+  .item .meta{min-width:0}
+  .item .meta .t{font-weight:700;font-size:14px}
+  .item .meta .d{color:var(--muted);font-size:12.5px;margin-top:2px}
+  .item .amt{font-weight:800;white-space:nowrap}
+  .item .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+  .empty{color:var(--muted);font-size:13.5px;padding:8px 2px}
+  .spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.5);
+    border-top-color:#fff;border-radius:50%;animation:r .7s linear infinite}
+  @keyframes r{to{transform:rotate(360deg)}}
+
+  @media(max-width:860px){.agents{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){
+    .agents{grid-template-columns:1fr}
+    h1{font-size:21px}
+    .who .co{max-width:40vw}
+    .item{flex-direction:column;align-items:flex-start}
+    .item .acts{justify-content:flex-start}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ CONNEXION ============ -->
+<div id="login" class="login-wrap">
+  <div class="login-card">
+    <div class="accent-bar"></div>
+    <div class="login-inner">
+      <div class="wordmark"><span class="logo-dot"></span> Accura Ouest</div>
+      <p class="login-sub">Espace artisan — connectez-vous pour accéder à vos outils.</p>
+      <form id="loginForm">
+        <label for="login">Identifiant (email)</label>
+        <input id="loginInput" type="email" autocomplete="username" placeholder="vous@entreprise.fr" required>
+        <label for="password">Mot de passe</label>
+        <input id="pwInput" type="password" autocomplete="current-password" placeholder="••••••••" required>
+        <button class="btn full" type="submit" id="loginBtn">Se connecter</button>
+        <div id="loginMsg" class="msg"></div>
+      </form>
+      <p class="hint">Vos identifiants vous sont remis par Accura Ouest<br>à la mise en route de votre abonnement.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ESPACE ============ -->
+<div id="app" class="hidden">
+  <header class="topbar">
+    <div class="topbar-in">
+      <div class="wordmark"><span class="logo-dot"></span> Accura Ouest</div>
+      <div class="top-right">
+        <div class="who">
+          <div class="co" id="coName">—</div>
+          <span class="badge" id="planBadge">—</span>
+        </div>
+        <a href="#" class="logout" id="logout">Déconnexion</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <h1 id="hello">Bonjour</h1>
+    <p class="lead" id="leadLine">Voici vos outils Accura.</p>
+
+    <div class="section-title">Vos agents</div>
+    <div class="agents" id="agents"></div>
+
+    <div id="devisPanel" class="hidden">
+      <div class="section-title">Nouveau devis</div>
+      <div class="panel">
+        <h2>Dictez ou écrivez votre chantier</h2>
+        <p class="sub">Décrivez la demande (ville, surface, travaux). Le devis PDF sort en quelques secondes.</p>
+        <textarea id="devisText" placeholder="Ex : Rénovation salle de bain à Nantes, environ 6 m², douche italienne, meuble vasque, carrelage sol et mur, gamme standard."></textarea>
+        <div class="row">
+          <button class="btn" id="genBtn">Générer le devis</button>
+          <span class="empty" id="genHint">Aucun prix n'est inventé : tout vient de votre grille tarifaire.</span>
+        </div>
+        <div class="result" id="devisResult"></div>
+      </div>
+
+      <div class="section-title">Vos devis</div>
+      <div class="panel">
+        <div class="list" id="quotesList"><div class="empty">Chargement…</div></div>
+      </div>
+    </div>
+
+    <div id="leadsPanel" class="hidden">
+      <div class="section-title">Vos prospects</div>
+      <div class="panel">
+        <p class="sub">Chantiers qualifiés à démarcher autour de chez vous, livrés chaque semaine.</p>
+        <div class="list" id="leadsList"><div class="empty">Chargement…</div></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const API = "/api/v1";
+const ICONS = {
+  devis:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg>',
+  factures:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6"/></svg>',
+  relances:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  avis_google:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.5 6 .9-4.3 4.2 1 6-5.4-2.8L6.6 19.6l1-6L3.3 9.4l6-.9z"/></svg>',
+  crm:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h11M4 12h11M4 18h7"/><path d="M18 9l2 2 3-3"/></svg>',
+  acquisition:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>',
+};
+const META = {
+  devis:{t:"Devis",d:"Dictez ou écrivez, recevez un devis PDF prêt à envoyer en 2 minutes."},
+  factures:{t:"Factures",d:"Facture d'acompte ou de solde à partir d'un devis validé."},
+  relances:{t:"Relances",d:"Messages de relance J+3, J+7 et J+15 prêts à envoyer."},
+  avis_google:{t:"Avis Google",d:"Message de demande d'avis à envoyer après un chantier."},
+  crm:{t:"Suivi (CRM)",d:"Vos devis suivis : envoyé, relancé, signé ou perdu."},
+  acquisition:{t:"Prospects",d:"2 à 3 chantiers qualifiés livrés chaque semaine, sans prospecter."},
+};
+const ALL_AGENTS = ["devis","factures","relances","avis_google","crm","acquisition"];
+// Capacité du plan requise par chaque carte (mêmes règles que le back, api._AGENT_PAR_ACTION).
+// Les factures font partie du socle Fondation : incluses dès que "devis" l'est.
+const REQUIRES = {devis:"devis",factures:"devis",relances:"relances",avis_google:"avis_google",crm:"crm",acquisition:"acquisition"};
+const UNLOCK = {acquisition:"Croissance"};
+
+let TOKEN = localStorage.getItem("accura_token") || "";
+
+function authHeaders(extra){ return Object.assign({"Authorization":"Bearer "+TOKEN}, extra||{}); }
+async function apiGet(path){ const r=await fetch(API+path,{headers:authHeaders()}); if(r.status===401){logout();throw new Error("session");} return r.json(); }
+async function apiPost(path,body){ const r=await fetch(API+path,{method:"POST",headers:authHeaders({"Content-Type":"application/json"}),body:JSON.stringify(body||{})}); const d=await r.json().catch(()=>({})); if(!r.ok) throw new Error(d.error||("Erreur "+r.status)); return d; }
+function eur(v){ return (Number(v)||0).toLocaleString("fr-FR",{minimumFractionDigits:2,maximumFractionDigits:2})+" €"; }
+
+async function download(url){
+  const r = await fetch(url,{headers:authHeaders()});
+  if(!r.ok){ alert("Téléchargement indisponible."); return; }
+  const blob = await r.blob();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = url.split("/").pop();
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+/* ---------- Connexion ---------- */
+const loginForm=document.getElementById("loginForm");
+loginForm.addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const btn=document.getElementById("loginBtn"), msg=document.getElementById("loginMsg");
+  msg.className="msg"; btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
+  try{
+    const r=await fetch(API+"/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({login:loginInput.value.trim(),password:pwInput.value})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(d.error||"Connexion impossible");
+    TOKEN=d.token; localStorage.setItem("accura_token",TOKEN);
+    render(d.account); show("app");
+  }catch(err){ msg.textContent=err.message; msg.className="msg err"; }
+  finally{ btn.disabled=false; btn.textContent="Se connecter"; }
+});
+document.getElementById("logout").addEventListener("click",(e)=>{e.preventDefault();logout();});
+function logout(){ TOKEN=""; localStorage.removeItem("accura_token"); show("login"); }
+function show(which){ document.getElementById("login").classList.toggle("hidden",which!=="login");
+  document.getElementById("app").classList.toggle("hidden",which!=="app"); }
+
+/* ---------- Rendu de l'espace ---------- */
+function render(account){
+  const co=account.company?.name||"Votre entreprise";
+  const plan=account.plan||{}; const agents=plan.agents||[];
+  document.getElementById("coName").textContent=co;
+  document.getElementById("planBadge").textContent="Offre "+(plan.label||"—");
+  document.getElementById("hello").textContent="Bonjour, "+co;
+  document.getElementById("leadLine").textContent="Votre offre "+(plan.label||"")+" — voici tout ce qui est inclus.";
+
+  // Cartes agents
+  const grid=document.getElementById("agents"); grid.innerHTML="";
+  ALL_AGENTS.forEach(key=>{
+    const has=agents.includes(REQUIRES[key]), m=META[key];
+    const el=document.createElement("div");
+    el.className="agent"+(has?"":" locked");
+    el.innerHTML=`<div class="ico">${ICONS[key]}</div><h3>${m.t}</h3><p>${m.d}</p>`+
+      (has?`<span class="ok-tag">✓ Inclus</span>`
+          :`<span class="lock-tag">Dès l'offre ${UNLOCK[key]||"supérieure"}</span>`);
+    grid.appendChild(el);
+  });
+
+  // Panneau devis
+  document.getElementById("devisPanel").classList.toggle("hidden",!agents.includes("devis"));
+  if(agents.includes("devis")) loadQuotes();
+  // Panneau prospects
+  document.getElementById("leadsPanel").classList.toggle("hidden",!agents.includes("acquisition"));
+  if(agents.includes("acquisition")) loadLeads();
+}
+
+/* ---------- Devis ---------- */
+document.getElementById("genBtn").addEventListener("click", async ()=>{
+  const btn=document.getElementById("genBtn"), out=document.getElementById("devisResult");
+  const text=document.getElementById("devisText").value.trim();
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span> Génération…';
+  try{
+    const d=await apiPost("/devis",{text});
+    out.className="result show";
+    out.innerHTML=`<div class="amount">${eur(d.totaux.total_ttc)} TTC</div>`+
+      `<p class="sub" style="margin:6px 0 12px">Devis ${d.id_devis} — ${d.message_client?d.message_client.slice(0,150):""}</p>`+
+      `<button class="btn sm" onclick="download('${d.exports.pdf}')">Télécharger le PDF</button>`;
+    document.getElementById("devisText").value="";
+    loadQuotes();
+  }catch(err){ out.className="result show"; out.innerHTML='<span style="color:#b91c1c">'+err.message+'</span>'; }
+  finally{ btn.disabled=false; btn.textContent="Générer le devis"; }
+});
+
+async function loadQuotes(){
+  const box=document.getElementById("quotesList");
+  try{
+    const items=await apiGet("/devis");
+    if(!items.length){ box.innerHTML='<div class="empty">Aucun devis pour l\'instant. Générez le premier ci-dessus.</div>'; return; }
+    box.innerHTML="";
+    items.forEach(q=>{
+      const el=document.createElement("div"); el.className="item";
+      el.innerHTML=`<div class="meta"><div class="t">${q.ville||"Chantier"} — ${q.chantier||"devis"}</div>`+
+        `<div class="d">${q.id} · ${q.date||""}</div></div>`+
+        `<div class="amt">${eur(q.total_ttc)}</div>`+
+        `<div class="acts">`+
+          (q.exports?.pdf?`<button class="btn ghost sm" onclick="download('${q.exports.pdf}')">PDF</button>`:"")+
+          `<button class="btn sm" onclick="makeInvoice('${q.id}')">Facture d'acompte</button>`+
+        `</div>`;
+      box.appendChild(el);
+    });
+  }catch(e){ box.innerHTML='<div class="empty">Impossible de charger les devis.</div>'; }
+}
+
+async function makeInvoice(id){
+  try{ const f=await apiPost("/factures",{quote_id:id,type:"acompte"});
+    if(f.exports?.pdf) download(f.exports.pdf); else alert("Facture créée : "+(f.id_facture||""));
+  }catch(e){ alert(e.message); }
+}
+
+async function loadLeads(){
+  const box=document.getElementById("leadsList");
+  try{
+    const items=await apiGet("/leads");
+    if(!items.length){ box.innerHTML='<div class="empty">Aucun prospect livré cette semaine pour l\'instant.</div>'; return; }
+    box.innerHTML="";
+    items.forEach(l=>{
+      const el=document.createElement("div"); el.className="item";
+      el.innerHTML=`<div class="meta"><div class="t">${l.commune||"Commune ?"} — ${l.type_dossier||l.metier||"chantier"}</div>`+
+        `<div class="d">${l.prochaine_action||l.description||""}</div></div>`+
+        `<div class="amt">${l.score!=null?l.score+"/100":""}</div>`;
+      box.appendChild(el);
+    });
+  }catch(e){ box.innerHTML='<div class="empty">Impossible de charger les prospects.</div>'; }
+}
+
+/* ---------- Au chargement : session existante ? ---------- */
+(async function init(){
+  if(!TOKEN){ show("login"); return; }
+  try{ const acc=await apiGet("/me"); render(acc); show("app"); }
+  catch(e){ show("login"); }
+})();
+</script>
+</body>
+</html>
